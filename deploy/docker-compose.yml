@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./deploy/Dockerfile
+    image: kucoin_manager:${KUCOIN_MANAGER_VERSION:-latest}
+    restart: always
+    env_file:
+    - .env
+    environment:
+      KUCOIN_MANAGER_HOST: 0.0.0.0
+      KUCOIN_MANAGER_DB_FILE: /db_data/db.sqlite3
+    volumes:
+    - kucoin_manager-db-data:/db_data/
+
+  migrator:
+    image: kucoin_manager:${KUCOIN_MANAGER_VERSION:-latest}
+    restart: "no"
+    command: aerich upgrade
+    environment:
+      KUCOIN_MANAGER_DB_FILE: /db_data/db.sqlite3
+    volumes:
+    - kucoin_manager-db-data:/db_data/
+
+
+
+volumes:
+  kucoin_manager-db-data:
+    name: kucoin_manager-db-data
