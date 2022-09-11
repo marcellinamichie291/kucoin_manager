@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <!-- This site was created in Webflow. https://www.webflow.com -->
-<!-- Last Published: Sat Sep 10 2022 14:49:42 GMT+0000 (Coordinated Universal Time) -->
-<html data-wf-domain="erfans-spectacular-site.webflow.io" data-wf-page="631c1ac106796a1cde47c426"
+<!-- Last Published: Sun Sep 11 2022 07:51:21 GMT+0000 (Coordinated Universal Time) -->
+<html data-wf-domain="erfans-spectacular-site.webflow.io" data-wf-page="631c1f3177b6830c8d9a6c07"
     data-wf-site="631c1ac106796a05bd47c425">
+
 <head>
     <meta charset="utf-8" />
     <title>
-        Erfan&#x27;s Spectacular Site
+        create user
     </title>
+    <meta content="create user" property="og:title" />
+    <meta content="create user" property="twitter:title" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta content="Webflow" name="generator" />
-    <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static', path='/add_account_style.css') }}" rel="stylesheet" type="text/css" />
     <!--[if lt IE 9]>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js" type="text/javascript">
 </script>
@@ -21,6 +24,7 @@
     <link href="https://uploads-ssl.webflow.com/img/favicon.ico" rel="shortcut icon" type="image/x-icon" />
     <link href="https://uploads-ssl.webflow.com/img/webclip.png" rel="apple-touch-icon" />
 </head>
+
 <body>
     <div class="navbar-no-shadow wf-section">
         <div data-animation="default" data-collapse="medium" data-duration="400" data-easing="ease" data-easing2="ease"
@@ -30,12 +34,14 @@
                     <nav role="navigation" class="nav-menu-wrapper w-nav-menu">
                         <ul role="list" class="nav-menu w-list-unstyled">
                             <li>
-                                <a href="{{ url_for('create_account') }}" class="nav-link smaller-nav">
-                                    Add account
+                                <a href="{{ url_for('create_account') }}"
+                                    aria-current="page" class="nav-link smaller-nav w--current">
+                                    Add
+                                    account
                                 </a>
                             </li>
                             <li>
-                                <a href="#SPOT_URL" class="nav-link">
+                                <a href="/" class="nav-link">
                                     Spot
                                 </a>
                                 <a href="#margin_URL" class="nav-link">
@@ -51,62 +57,38 @@
                         <div class="w-icon-nav-menu">
                         </div>
                     </div>
+                    <a href="#add_account_URL" class="nav-link smaller-nav">
+                        orders
+                    </a>
                 </div>
             </div>
         </div>
     </div>
-    <div class="form-block w-form">
-        <form id="email-form" name="email-form" data-name="Email Form" redirect="#HOME_URL" data-redirect="#HOME_URL"
-            method="get" class="form">
-            <div class="columns w-row">
-                <div class="column-2 w-col w-col-6">
-                {% for account in accounts %}
-                    <label class="w-checkbox checkbox-field-2">
-                        <input type="checkbox" id="{{ account.name }}" name="{{ account.name }}" data-name="{{ account.name }}" class="w-checkbox-input checkbox" />
-                        <span class="checkbox-label w-form-label" for="{{ account.name }}">
-                            {{ account.name }}
-                        </span>
-                    </label>
-                {% endfor %}
-                </div>
-                <div class="column w-col w-col-6">
-                    <label for="field" class="field-label">
-                        Amount
-                    </label>
-                    <input type="text" class="text-field w-input" maxlength="256" name="field" data-name="Field"
-                        placeholder="Example Text" id="field" required="" />
-                    <label for="field-2" class="field-label-2">
-                        Price
-                    </label>
-                    <input type="text" class="text-field-2 w-input" maxlength="256" name="field-2" data-name="Field 2"
-                        placeholder="Example Text" id="field-2" required="" />
-                    <label class="w-checkbox checkbox-field">
-                        <input type="checkbox" id="Market" name="Market" data-name="Market" class="w-checkbox-input" />
-                        <span class="checkbox-label-2 w-form-label" for="Market">
-                            Market Price
-                        </span>
-                    </label>
-                    <div class="div-block-2">
-                        <label class="radio-button-field-2 w-radio">
-                            <input type="radio" id="sell" name="sell-buy" value="sell" data-name="sell-buy"
-                                class="w-form-formradioinput w-radio-input" />
-                            <span class="radio-button-label-2 w-form-label" for="sell">
-                                Buy
-                            </span>
-                        </label>
-                        <label class="radio-button-field w-radio">
-                            <input type="radio" id="radio" name="sell-buy" value="Radio" data-name="sell-buy"
-                                required="" class="w-form-formradioinput w-radio-input" />
-                            <span class="radio-button-label w-form-label" for="radio">
-                                Sell
-                            </span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <div class="div-block">
-                <input type="submit" data-wait="Please wait..." value="Submit" class="submit-button w-button" />
-            </div>
+    <div class="form-block-2 w-form">
+        <form id="email-form" name="email-form" data-name="Email Form" redirect="{{ url_for('create_account') }}"
+            data-redirect="{{ url_for('create_account') }}" method=" get" class="form-2">
+            <label for="name">
+                Name
+            </label>
+            <input type="text" class="w-input" maxlength="256" name="name" data-name="name" placeholder=""
+                id="name" />
+            <label for="api_key">
+                Api Key
+            </label>
+            <input type="text" class="w-input" maxlength="256" name="api_key" data-name="api_key" placeholder=""
+                id="api_key" required="" />
+            <label for="api_secret">
+                Api
+                Secret
+            </label>
+            <input type="text" class="w-input" maxlength="256" name="api_secret" data-name="api_secret" placeholder=""
+                id="api_secret" required="" />
+            <label for="api_passphrase">
+                Api Passphrase
+            </label>
+            <input type="text" class="w-input" maxlength="256" name="api_passphrase" data-name="api_passphrase" placeholder="" id="api_passphrase"
+                required="" />
+            <input type="submit" value="Add" data-wait="Please wait..." class="w-button" />
         </form>
         <div class="w-form-done">
             <div>
@@ -144,7 +126,7 @@
             </div>
             <div class="footer-bottom">
                 <div class="footer-copyright">
-                    Â© 2022 Company name. All rights reserved
+                    © 2022 Company name. All rights reserved
                 </div>
                 <div class="footer-social-block-two">
                     <a href="#" class="footer-social-link w-inline-block">
@@ -173,4 +155,5 @@
 </script>
 <![endif]-->
 </body>
+
 </html>

@@ -1,13 +1,15 @@
+import json
+from pathlib import Path
 from typing import Any, List
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.param_functions import Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from kucoin_manager.db.dao.account_dao import AccountDAO
 from kucoin_manager.db.models.kucoin_model import AccountModel
-from kucoin_manager.web.api.kucoin.schema import AccountModelDTO, AccountModelInputDTO
+from kucoin_manager.web.api.kucoin.schema import AccountModelDTO
 
 router = APIRouter()
 
@@ -29,39 +31,76 @@ async def get_account_models(
     return await account_dao.get_all_accounts(limit=limit, offset=offset)
 
 
-@router.put("/")
-async def create_account_model(
-    new_account_object: AccountModelInputDTO,
-    account_dao: AccountDAO = Depends(),
-) -> None:
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(Path(BASE_DIR, "templates")))
+
+
+@router.get("/create-user", response_class=HTMLResponse)
+async def create_account(
+    request: Request,
+) -> Any:
     """
     Creates account model in the database.
 
-    :param new_account_object: new account model item.
-    :param account_dao: DAO for account models.
+    :param request: new account model item.
+    :Returns: TEmplate response
     """
-    await account_dao.create_account_model(**new_account_object.dict())
+    return templates.TemplateResponse(
+        "create-user.html",
+        {
+            "request": request,
+        },
+    )
 
 
-templates = Jinja2Templates(directory="templates")
+@router.post("/create-user")
+async def create_account_form(
+    name: str = Form(None),
+    api_key: str = Form(None),
+    api_secret: str = Form(None),
+    api_passphrase: str = Form(None),
+) -> Any:
+    """
+    Creates account model in the database.
+
+    :param name: new account model item.
+    :param api_key: new account model item.
+    :param api_secret: new account model item.
+    :param api_passphrase: new account model item.
+    :Returns: TEmplate response
+    """
+    return {
+        "name": name,
+        "api_key": api_key,
+        "api_secret": api_secret,
+        "api_passphrase": api_passphrase,
+    }
 
 
 @router.get("/index", response_class=HTMLResponse)
 async def read_item(
     request: Request,
-    account_dao: AccountDAO = Depends(),
 ) -> Any:
     """
     Test.
 
     :param request: request object
-    :param account_dao: DAO for account models.
     :Returns: TEmplate response
     """
+    with open("account.json", "a+") as accounts_file:
+        accounts_file.seek(0)
+        line = accounts_file.readline()
+        if line:
+            accounts_file.seek(0)
+            accounts = json.load(accounts_file)
+        else:
+            accounts_file.write("[]")
+            accounts = []
+
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
-            "accounts": await account_dao.get_all_accounts(limit=0, offset=10),
+            "accounts": accounts,
         },
     )
