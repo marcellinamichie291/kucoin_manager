@@ -2,7 +2,10 @@ from typing import List
 
 from kucoin_manager.settings import settings
 
-MODELS_MODULES: List[str] = ["kucoin_manager.db.models.dummy_model"]  # noqa: WPS407
+MODELS_MODULES: List[str] = [
+    "kucoin_manager.db.models.dummy_model",
+    "kucoin_manager.db.models.kucoin_model",
+]  # noqa: WPS407
 
 TORTOISE_CONFIG = {  # noqa: WPS407
     "connections": {

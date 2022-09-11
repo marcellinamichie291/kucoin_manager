@@ -15,6 +15,15 @@ services:
     volumes:
     - kucoin_manager-db-data:/db_data/
 
+  # make-migrations:
+  #   image: kucoin_manager:${KUCOIN_MANAGER_VERSION:-latest}
+  #   restart: "no"
+  #   command: aerich migrate
+  #   environment:
+  #     KUCOIN_MANAGER_DB_FILE: /db_data/db.sqlite3
+  #   volumes:
+  #   - kucoin_manager-db-data:/db_data/
+
   migrator:
     image: kucoin_manager:${KUCOIN_MANAGER_VERSION:-latest}
     restart: "no"
