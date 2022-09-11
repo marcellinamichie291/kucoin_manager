@@ -2,6 +2,7 @@ from importlib import metadata
 
 from fastapi import FastAPI
 from fastapi.responses import UJSONResponse
+from fastapi.staticfiles import StaticFiles
 from tortoise.contrib.fastapi import register_tortoise
 
 from kucoin_manager.db.config import TORTOISE_CONFIG
@@ -39,5 +40,7 @@ def get_app() -> FastAPI:
         config=TORTOISE_CONFIG,
         add_exception_handlers=True,
     )
+
+    app.mount("/static", StaticFiles(directory="kucoin_manager/static"), name="static")
 
     return app
