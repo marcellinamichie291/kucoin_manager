@@ -3,9 +3,9 @@ from pydantic import BaseModel
 
 class AccountModelDTO(BaseModel):
     """
-    DTO for dummy models.
+    DTO for account models.
 
-    It returned when accessing dummy models from the API.
+    It returned when accessing account models from the API.
     """
 
     id: int
