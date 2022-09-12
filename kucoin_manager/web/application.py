@@ -33,7 +33,7 @@ def get_app() -> FastAPI:
     register_shutdown_event(app)
 
     # Main router for the API.
-    app.include_router(router=api_router, prefix="/api")
+    app.include_router(router=api_router, prefix="")
     # Configures tortoise orm.
     register_tortoise(
         app,

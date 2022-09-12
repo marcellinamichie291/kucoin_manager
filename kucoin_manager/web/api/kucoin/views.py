@@ -54,8 +54,37 @@ async def create_account_form(
     }
 
 
-@router.get("/index", response_class=HTMLResponse)
-async def read_item(
+@router.get("/future-trade", response_class=HTMLResponse)
+async def future_trade(
+    request: Request,
+) -> Any:
+    """
+    Test.
+
+    :param request: request object
+    :Returns: TEmplate response
+    """
+    with open("account.json", "a+") as accounts_file:
+        accounts_file.seek(0)
+        line = accounts_file.readline()
+        if line:
+            accounts_file.seek(0)
+            accounts = json.load(accounts_file)
+        else:
+            accounts_file.write("[]")
+            accounts = []
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "accounts": accounts,
+        },
+    )
+
+
+@router.post("/future-trade", response_class=HTMLResponse)
+async def future_trade_form(
     request: Request,
 ) -> Any:
     """
