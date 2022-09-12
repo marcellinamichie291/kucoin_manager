@@ -46,8 +46,17 @@ async def create_account_form(
     :param api_passphrase: new account model item.
     :Returns: TEmplate response
     """
+    with open("account.json", "a+") as accounts_file:
+        accounts_file.seek(0)
+        line = accounts_file.readline()
+        if line:
+            accounts_file.seek(0)
+            accounts = json.load(accounts_file)
+        else:
+            accounts_file.write("[]")
+            accounts = []
+    print(accounts)  # noqa: WPS421
     return {
-        "name": name,
         "api_key": api_key,
         "api_secret": api_secret,
         "api_passphrase": api_passphrase,
@@ -75,7 +84,7 @@ async def future_trade(
             accounts = []
 
     return templates.TemplateResponse(
-        "index.html",
+        "future_trade.html",
         {
             "request": request,
             "accounts": accounts,
