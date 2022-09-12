@@ -59,11 +59,13 @@
             </div>
         </div>
         <div class="form-block-2 w-form">
-            <form id="email-form"
-                  name="email-form"
-                  data-name="Email Form"
+            <form id="account-form"
+                  name="account-form"
+                  data-name="account Form"
                   method="post"
-                  class="form-2">
+                  class="form-2"
+                  action="{{ url_for('create_account_form') }}"
+                  data-redirect="{{ url_for('create_account') }}">
                 <label for="api_key">Api Key</label>
                 <input type="text"
                        class="w-input"
@@ -91,32 +93,6 @@
                        placeholder=""
                        id="api_passphrase"
                        required=""/>
-                <div class="div-block-4">
-                    <div>
-                        Api Type <strong>:</strong>
-                        Â 
-                    </div>
-                    <label class="radio-button-field-4 w-radio">
-                        <input type="radio"
-                               id="spot-margin-2"
-                               name="api-type"
-                               value="spot-margin"
-                               data-name="api-type"
-                               required=""
-                               class="w-form-formradioinput w-radio-input"/>
-                        <span class="radio-button-label-3 w-form-label" for="spot-margin-2">Spot/Margin</span>
-                    </label>
-                    <label class="radio-button-field-3 w-radio">
-                        <input type="radio"
-                               id="future"
-                               name="api-type"
-                               value="future"
-                               data-name="api-type"
-                               required=""
-                               class="w-form-formradioinput w-radio-input"/>
-                        <span class="radio-button-label-4 w-form-label" for="future">Future</span>
-                    </label>
-                </div>
                 <input type="submit" data-wait="Please wait..." value="Add" class="w-button"/>
             </form>
             <div class="w-form-done">
@@ -132,7 +108,7 @@
                 <li class="list-item">
                     <div class="account_field">
                         <div class="account_field_label">
-                            <div class="text-block">ID :Â</div>
+                            <div class="text-block">ID :</div>
                         </div>
                         <div class="account_field_value">
                             <div>
