@@ -8,6 +8,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette import status
+from kucoin_manager.settings import settings
 
 from kucoin_manager.web.api.kucoin.exceptions import NoAccountFoundError
 from kucoin_manager.web.api.kucoin.utils import get_accounts_from_db, place_limit_order_on_all_accounts
@@ -19,7 +20,7 @@ templates = Jinja2Templates(directory=str(Path(BASE_DIR, "templates")))
 logger = logging.getLogger(__name__)
 
 
-@router.get("/users", response_class=HTMLResponse)
+@router.get("/accounts", response_class=HTMLResponse)
 async def create_account(
     request: Request,
 ) -> Any:
@@ -30,7 +31,7 @@ async def create_account(
     :Returns: Template response
     """
     return templates.TemplateResponse(
-        "users.html",
+        "accounts.html",
         {
             "request": request,
             "accounts": get_accounts_from_db(),
@@ -38,7 +39,7 @@ async def create_account(
     )
 
 
-@router.post("/users")
+@router.post("/accounts")
 async def create_account_form(
     api_key: str = Form(None),
     api_secret: str = Form(None),
@@ -151,6 +152,7 @@ async def future_trade_form(
         lever=da.get("leverage"),
         size=da["size"],
         price=da.get("price"),
+        is_sandbox=Settings.is_sandbox
     )
     logger.debug("input: ", da, "\nselected accounts: ", form_accounts)
 

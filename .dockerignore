@@ -1,6 +1,8 @@
+account.json
+deploy/
+
 ### Python template
 
-deploy/
 .idea/
 .vscode/
 .git/
