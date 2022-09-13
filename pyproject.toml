@@ -23,6 +23,7 @@ aiosqlite = "^0.17.0"
 httptools = "^0.3.0"
 Jinja2 = "^3.1.2"
 python-multipart = "^0.0.5"
+kucoin-futures-python = "^1.0.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0"

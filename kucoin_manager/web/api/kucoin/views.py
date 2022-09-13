@@ -1,19 +1,25 @@
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Form, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette import status
+
+from kucoin_manager.web.api.kucoin.exceptions import NoAccountFoundError
+from kucoin_manager.web.api.kucoin.utils import get_accounts_from_db, place_limit_order_on_all_accounts
 
 router = APIRouter()
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(Path(BASE_DIR, "templates")))
+logger = logging.getLogger(__name__)
 
 
-@router.get("/create-user", response_class=HTMLResponse)
+@router.get("/users", response_class=HTMLResponse)
 async def create_account(
     request: Request,
 ) -> Any:
@@ -21,17 +27,18 @@ async def create_account(
     Creates account model in the database.
 
     :param request: new account model item.
-    :Returns: TEmplate response
+    :Returns: Template response
     """
     return templates.TemplateResponse(
-        "create_user.html",
+        "users.html",
         {
             "request": request,
+            "accounts": get_accounts_from_db(),
         },
     )
 
 
-@router.post("/create-user-form")
+@router.post("/users")
 async def create_account_form(
     api_key: str = Form(None),
     api_secret: str = Form(None),
@@ -43,17 +50,13 @@ async def create_account_form(
     :param api_key: new account model item.
     :param api_secret: new account model item.
     :param api_passphrase: new account model item.
-    :Returns: TEmplate response
+    :Returns: Template response
     """
-    with open("account.json", "a+") as input_file:
-        input_file.seek(0)
-        line = input_file.readline()
-        if line:
-            input_file.seek(0)
-            accounts = json.load(input_file)
-        else:
-            input_file.write("[]")
-            accounts = []
+    accounts = get_accounts_from_db()
+    ids = [_["id"] for _ in accounts]
+    next_id = len(accounts)
+    while next_id in ids:
+        next_id += 1
 
     for acc in accounts:
         if acc["api_key"] == api_key:
@@ -61,6 +64,7 @@ async def create_account_form(
     else:
         accounts.append(
             {
+                "id": next_id,
                 "api_key": api_key,
                 "api_secret": api_secret,
                 "api_passphrase": api_passphrase,
@@ -71,7 +75,7 @@ async def create_account_form(
     with open("account.json", "w") as out_file:
         json.dump(accounts, out_file)
 
-    print(accounts)  # noqa: WPS421
+    logger.debug(f"Form Matched accounts: {accounts}.")
     return RedirectResponse(
         router.url_path_for("create_account"),
         status_code=status.HTTP_302_FOUND,
@@ -86,7 +90,7 @@ async def future_trade(
     Test.
 
     :param request: request object
-    :Returns: TEmplate response
+    :Returns: Template response
     """
     with open("account.json", "a+") as accounts_file:
         accounts_file.seek(0)
@@ -107,7 +111,7 @@ async def future_trade(
     )
 
 
-@router.post("/future-trade-form", response_class=HTMLResponse)
+@router.post("/future-trade")
 async def future_trade_form(
     request: Request,
 ) -> Any:
@@ -115,22 +119,42 @@ async def future_trade_form(
     Test.
 
     :param request: request object
-    :Returns: TEmplate response
+    :Returns: Template response
     """
-    with open("account.json", "a+") as accounts_file:
-        accounts_file.seek(0)
-        line = accounts_file.readline()
-        if line:
-            accounts_file.seek(0)
-            accounts = json.load(accounts_file)
-        else:
-            accounts_file.write("[]")
-            accounts = []
+    db_accounts = get_accounts_from_db()
+    da: dict = await request.form()
+    da = jsonable_encoder(da)
 
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "accounts": accounts,
-        },
+    if not db_accounts:
+        raise NoAccountFoundError
+
+    form_accounts = db_accounts
+    if da.get("acc_all") != "on":
+        form_accounts = []
+        form_account_ids = []
+
+        for key in da.keys():
+            if key.startswith("acc_"):
+                acc_id = int(key.replace("acc_", ""))
+                form_account_ids.append(acc_id)
+
+        for acc in db_accounts:
+            if acc["id"] in form_account_ids:
+                form_accounts.append(acc)
+
+    form_accounts = form_accounts or db_accounts
+
+    place_limit_order_on_all_accounts(
+        form_accounts,
+        symbol=da["symbol"],
+        side=da["sell-buy"],
+        lever=da.get("leverage"),
+        size=da["size"],
+        price=da.get("price"),
+    )
+    logger.debug("input: ", da, "\nselected accounts: ", form_accounts)
+
+    return RedirectResponse(
+        router.url_path_for("future_trade"),
+        status_code=status.HTTP_302_FOUND,
     )

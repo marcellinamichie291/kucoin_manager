@@ -69,22 +69,22 @@
                         <div class="div-block-3">
                             <label class="w-checkbox checkbox-field-2">
                                 <input type="checkbox"
-                                       id="all"
-                                       name="all"
-                                       data-name="all"
+                                       id="acc_all"
+                                       name="acc_all"
+                                       data-name="acc_all"
                                        class="w-checkbox-input checkbox"/>
-                                <span class="checkbox-label w-form-label" for="all">
+                                <span class="checkbox-label w-form-label" for="acc_all">
                                     <strong>ALL</strong>
                                 </span>
                             </label>
                             {% for account in accounts %}
                                 <label class="w-checkbox checkbox-field-2">
                                     <input type="checkbox"
-                                           id="{{ account.name }}"
-                                           name="{{ account.name }}"
-                                           data-name="{{ account.name }}"
+                                           id="acc_{{ account.id }}"
+                                           name="acc_{{ account.id }}"
+                                           data-name="acc_{{ account.id }}"
                                            class="w-checkbox-input checkbox"/>
-                                    <span class="checkbox-label w-form-label" for="{{ account.name }}">{{ account.name }}</span>
+                                    <span class="checkbox-label w-form-label" for="acc_{{ account.id }}">acc_{{ account.id }}</span>
                                 </label>
                             {% endfor %}
                         </div>
@@ -102,26 +102,35 @@
                                    required=""/>
                         </div>
                         <div class="div-block-5">
-                            <label for="amount" class="field-label">Amount</label>
+                            <label for="size" class="field-label">Size</label>
                             <input type="text"
                                    class="text-field w-input"
                                    maxlength="256"
-                                   name="amount"
-                                   data-name="amount"
-                                   placeholder="amount"
-                                   id="amount"
+                                   name="size"
+                                   data-name="size"
+                                   placeholder="size"
+                                   id="size"
                                    required=""/>
                         </div>
                         <div class="div-block-5">
-                            <label for="Price" class="field-label">Price</label>
+                            <label for="price" class="field-label">Price</label>
                             <input type="text"
                                    class="text-field w-input"
                                    maxlength="256"
-                                   name="Price"
-                                   data-name="Price"
-                                   placeholder="Price"
-                                   id="Price"
-                                   required=""/>
+                                   name="price"
+                                   data-name="price"
+                                   placeholder="price"
+                                   id="price"/>
+                        </div>
+                        <div class="div-block-5">
+                            <label for="symbol" class="field-label">Leverage</label>
+                            <input type="text"
+                                   class="text-field w-input"
+                                   maxlength="256"
+                                   name="leverage"
+                                   data-name="leverage"
+                                   placeholder="Leverage"
+                                   id="leverage"/>
                         </div>
                         <div class="div-block-2">
                             <label class="radio-button-field-2 w-radio">
