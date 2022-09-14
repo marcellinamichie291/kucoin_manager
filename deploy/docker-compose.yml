@@ -14,7 +14,11 @@ services:
       KUCOIN_MANAGER_DB_FILE: /db_data/db.sqlite3
     volumes:
     - kucoin_manager-db-data:/db_data/
-
+    - ${PWD}/account.json:/app/src/account.json
+    ports:
+      # Exposes application port.
+    - "80:80"
+    - "8000:8000"
   # make-migrations:
   #   image: kucoin_manager:${KUCOIN_MANAGER_VERSION:-latest}
   #   restart: "no"

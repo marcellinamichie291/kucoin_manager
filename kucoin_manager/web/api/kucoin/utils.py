@@ -54,7 +54,7 @@ def check_for_leverage_limit(exception_message):
         )
         if max_leverage_check:
             lever = int(max_leverage_check[0])
-            logger.warning(
+            logger.error(
                 f"Found leverage error. Reset the leverage to: {lever}!",
             )
             return lever
@@ -80,6 +80,7 @@ def place_future_limit_order( # noqa WPS231 it's not actually that complex :)
     :param lever: leverage, 0 to 100
     :Returns: order id
     """
+    counter = 0
     while True:
         try:
             if price:
@@ -97,14 +98,22 @@ def place_future_limit_order( # noqa WPS231 it's not actually that complex :)
                     lever=lever,
                     size=size,
                 )
+            logger.debug(f"\n-=-\nOrder [[[ Done ]]]: {symbol}.\n-=-\n")
             return order_id
         except exceptions.ReadTimeout as exccep:
-            logger.exception(exccep)
+            logger.error(str(exccep))
+            counter += 1
+            if counter > 3:
+                return None
         except Exception as exccep:
+            logger.error(str(exccep))
             lever = check_for_leverage_limit(str(exccep)) or lever
+            counter += 1
+            if counter > 3:
+                return None
 
 
-def place_limit_order_on_all_accounts(accounts, *args, is_sandbox=True, **kwargs):
+def place_limit_order_on_all_accounts(accounts, *args, is_sandbox=False, **kwargs):
     """
     Place order for multiple account.
 
@@ -113,15 +122,25 @@ def place_limit_order_on_all_accounts(accounts, *args, is_sandbox=True, **kwargs
     :param *args: List of arguments passed to order placement function.
     :param **kwargs: Dict of keyword arguments passed to order placement function.
     """
+
+    for client in generate_accounts_client(accounts=accounts, is_sandbox=is_sandbox):
+        logger.error(f"\nplace_limit_order_on_all_accounts => sandbox: {is_sandbox} - {kwargs}")
+        order_id = place_future_limit_order(client, *args, **kwargs)
+        if order_id is None:
+            return None
+
+def generate_accounts_client(accounts, is_sandbox=False):
+    # TODO globalize is_sandbox
+
     for acc in accounts:
+        logger.error(f"-\n-\n\n{acc}\n-\n-\n")
         client = Trade(
-            key=acc["key"],
-            secret=acc["secret"],
-            passphrase=acc["passphrase"],
+            key=acc["api_key"],
+            secret=acc["api_secret"],
+            passphrase=acc["api_passphrase"],
             is_sandbox=is_sandbox,
         )
-        place_future_limit_order(client, *args, **kwargs)
-
+        yield client
 
 def get_accounts_from_db():
     """

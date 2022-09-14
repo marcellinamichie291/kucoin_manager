@@ -1,0 +1,31 @@
+<div class="navbar-no-shadow wf-section">
+    <div data-animation="default"
+         data-collapse="medium"
+         data-duration="400"
+         data-easing="ease"
+         data-easing2="ease"
+         role="banner"
+         class="navbar-no-shadow-container w-nav">
+        <div class="container-regular">
+            <div class="navbar-wrapper">
+                <nav role="navigation" class="nav-menu-wrapper w-nav-menu">
+                    <ul role="list" class="nav-menu w-list-unstyled">
+                        <li>
+                            <a href="{{ url_for('create_account') }}" class="nav-link smaller-nav">Add account</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('future_trade') }}"
+                               aria-current="page"
+                               class="nav-link w--current">Future</a>
+                            <a href="#margin_URL" class="nav-link">Margin/Spot</a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="menu-button w-nav-button">
+                    <div class="w-icon-nav-menu"></div>
+                </div>
+                <a href="{{ url_for('list_orders') }}" class="nav-link smaller-nav">orders</a>
+            </div>
+        </div>
+    </div>
+</div>
