@@ -71,9 +71,8 @@ env = [
 ]
 [tool.aerich]
 tortoise_orm = "kucoin_manager.db.config.TORTOISE_CONFIG"
-location = "./kucoin_manager/db/migrations"
-src_folder = "./kucoin_manager"
-
+location = "kucoin_manager/db/migrations"
+src_folder = "./."
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

@@ -39,6 +39,7 @@ def get_app() -> FastAPI:
         app,
         config=TORTOISE_CONFIG,
         add_exception_handlers=True,
+        generate_schemas=True,
     )
 
     app.mount("/static", StaticFiles(directory="kucoin_manager/static"), name="static")

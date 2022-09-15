@@ -8,10 +8,12 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette import status
-from kucoin_manager.settings import settings
 
-from kucoin_manager.web.api.kucoin.exceptions import NoAccountFoundError
-from kucoin_manager.web.api.kucoin.utils import get_accounts_from_db, db_list_open_orders, place_limit_order_on_all_accounts
+from kucoin_manager.db.models.kucoin import Account, Orders
+from kucoin_manager.web.api.kucoin.utils import (
+    kucoin_cancel_order,
+    place_limit_order_on_all_accounts,
+)
 
 router = APIRouter()
 
@@ -30,12 +32,15 @@ async def create_account(
     :param request: new account model item.
     :Returns: Template response
     """
+
+    accounts = await Account.all()
+
     return templates.TemplateResponse(
         "accounts.html",
         {
             "request": request,
-            "accounts": get_accounts_from_db(),
-        },
+            "accounts": accounts,
+        }
     )
 
 
@@ -45,7 +50,6 @@ async def create_account_form(
     api_key: str = Form(None),
     api_secret: str = Form(None),
     api_passphrase: str = Form(None),
-    is_sandbox: bool = Form(False),
 ) -> Any:
     """
     Creates account model in the database.
@@ -54,35 +58,17 @@ async def create_account_form(
     :param api_key: key.
     :param api_secret: secret.
     :param api_passphrase: password.
-    :param is_sandbox: should sandbox endpoints be used for this account.
     :Returns: Template response
     """
-    accounts = get_accounts_from_db()
-    ids = [_["id"] for _ in accounts]
-    next_id = len(accounts)
-    while next_id in ids:
-        next_id += 1
 
-    for acc in accounts:
-        if acc["api_key"] == api_key:
-            break
-    else:
-        accounts.append(
-            {
-                "id": next_id,
-                "name": name,
-                "api_key": api_key,
-                "api_secret": api_secret,
-                "api_passphrase": api_passphrase,
-                "is_sandbox": is_sandbox,
-                "api_type": "future",
-            },
-        )
+    await Account.get_or_create(
+        name= name,
+        api_key= api_key,
+        api_secret= api_secret,
+        api_passphrase= api_passphrase,
+        api_type= "future",
+    )
 
-    with open("account.json", "w") as out_file:
-        json.dump(accounts, out_file)
-
-    logger.debug(f"Form Matched accounts: {accounts}.")
     return RedirectResponse(
         router.url_path_for("create_account"),
         status_code=status.HTTP_302_FOUND,
@@ -99,15 +85,7 @@ async def future_trade(
     :param request: request object
     :Returns: Template response
     """
-    with open("account.json", "a+") as accounts_file:
-        accounts_file.seek(0)
-        line = accounts_file.readline()
-        if line:
-            accounts_file.seek(0)
-            accounts = json.load(accounts_file)
-        else:
-            accounts_file.write("[]")
-            accounts = []
+    accounts = await Account.all()
 
     return templates.TemplateResponse(
         "future_trade.html",
@@ -128,47 +106,137 @@ async def future_trade_form(
     :param request: request object
     :Returns: Template response
     """
-    db_accounts = get_accounts_from_db()
-    da: dict = await request.form()
-    da = jsonable_encoder(da)
+    form: dict = await request.form()
+    form = jsonable_encoder(form)
 
-    if not db_accounts:
-        raise NoAccountFoundError
-
-    form_accounts = db_accounts
-    if da.get("acc_all") != "on":
-        form_accounts = []
-        form_account_ids = []
-
-        for key in da.keys():
+    form_account_ids = []
+    if form.get("acc_all") != "on":
+        for key in form.keys():
             if key.startswith("acc_"):
                 acc_id = int(key.replace("acc_", ""))
                 form_account_ids.append(acc_id)
 
-        for acc in db_accounts:
-            if acc["id"] in form_account_ids:
-                form_accounts.append(acc)
+    if form_account_ids:
+        accounts = await Account.in_bulk(form_account_ids)
+        accounts = accounts.values()
+    else:
+        accounts = await Account.all()
 
-    form_accounts = form_accounts or db_accounts
+    print("[future_trade_form], accounts: ", accounts)
 
-    order_id = place_limit_order_on_all_accounts(
-        form_accounts,
-        symbol=da["symbol"],
-        side=da["sell-buy"],
-        lever=da.get("leverage"),
-        size=da["size"],
-        price=da.get("price"),
-        is_sandbox=settings.is_sandbox
+    account_order_id = place_limit_order_on_all_accounts(
+        accounts,
+        symbol=form["symbol"],
+        side=form["sell-buy"],
+        lever=form.get("leverage"),
+        size=form["size"],
+        price=form.get("price"),
     )
-    if order_id is None:
+    if not account_order_id:
         return RedirectResponse(
             router.url_path_for("future_trade"),
             status_code=status.HTTP_302_FOUND,
         )
- 
-    logger.debug("input: ", da, "\nselected accounts: ", form_accounts)
+    print("account_order_id, ", account_order_id)
+    created_orders = await Orders.bulk_create([
+        Orders(
+            order_id = order_id,
+            account = account,
+            symbol = form["symbol"],
+            side = form["sell-buy"],
+            size = form["size"],
+            price = form.get("price"),
+            leverage = form.get("leverage"),
+        )
+
+        for account, order_id in account_order_id
+    ])
+
+    print("[future_trade_form], created_orders: ", created_orders)
 
     return RedirectResponse(
         router.url_path_for("future_trade"),
         status_code=status.HTTP_302_FOUND,
     )
+
+
+@router.get("/order", response_class=HTMLResponse, )
+async def list_orders(
+    request: Request,
+):
+    orders = await Orders.filter(status="open")
+    logger.info(f"list_orders, orders: {orders}")
+
+    return templates.TemplateResponse(
+        "orders.html",
+        {
+            "request": request,
+            "orders": orders,
+        },
+    )
+
+
+@router.get("/order/delete/{order_id}", response_class=HTMLResponse)
+async def delete_orders(
+    order_id: int,
+):
+    order = await Orders.get_or_none(id=order_id)
+    print("Delete Order, account: ", order.account)
+    if order:
+        print("Delete Order, account: ", order.account)
+        # canceled = kucoin_cancel_order(account=order.account, order_id=order.order_id)
+        # if canceled:
+        #     order.update_from_dict({"status": "canceled"})
+        #     print(f"\n\n\n=-=-\nuanced\n{canceled}\n")
+
+    # await Orders.filter(order_id=order_id).update(status="canceled")
+    # logger.info(f"len orders: {orders}")
+
+    return RedirectResponse(
+        router.url_path_for("list_orders"),
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+# from typing import List
+
+# from fastapi import FastAPI, HTTPException
+# from pydantic import BaseModel
+# from tortoise.contrib.fastapi import HTTPNotFoundError, register_tortoise
+
+
+# app = FastAPI(title="Tortoise ORM FastAPI example")
+
+
+# class Status(BaseModel):
+#     message: str
+
+
+# @app.get("/orders", response_model=List[Order_Pydantic])
+# async def get_orders():
+#     return await Order_Pydantic.from_queryset(Orders.filter(status="open"))
+
+
+# @app.get(
+#     "/oder/{oder_id}", response_model=Order_Pydantic, responses={404: {"model": HTTPNotFoundError}}
+# )
+# async def get_oder(oder_id: int):
+#     return await Order_Pydantic.from_queryset_single(Orders.get(id=oder_id))
+
+
+# @app.put(
+#     "/oder/{oder_id}", response_model=Order_Pydantic, responses={404: {"model": HTTPNotFoundError}}
+# )
+# async def update_oder(oder_id: int, oder: OrderIn_Pydantic):
+#     await Orders.filter(id=oder_id).update(**oder.dict(exclude_unset=True))
+#     return await Order_Pydantic.from_queryset_single(Orders.get(id=oder_id))
+
+
+# @app.delete("/oder/{oder_id}", response_model=Status, responses={404: {"model": HTTPNotFoundError}})
+# async def delete_oder(oder_id: int):
+#     deleted_count = await Orders.filter(id=oder_id).delete()
+#     if not deleted_count:
+#         raise HTTPException(status_code=404, detail=f"Order {oder_id} not found")
+#     return Status(message=f"Deleted oder {oder_id}")
+
+

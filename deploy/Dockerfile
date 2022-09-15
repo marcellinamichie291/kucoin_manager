@@ -16,4 +16,7 @@ RUN poetry install
 COPY . /app/src/
 RUN poetry install
 
+RUN mkdir /db_data
+RUN touch /db_data/db.sqlite3
+
 CMD ["/usr/local/bin/python", "-m", "kucoin_manager"]

@@ -37,9 +37,6 @@ class Settings(BaseSettings):
     # Current environment
     environment: str = "dev"
 
-    # should user Kucoin sandbox endpoints
-    is_sandbox: bool = False 
-
     log_level: LogLevel = LogLevel.INFO
 
     # Variables for the database

@@ -1,9 +1,12 @@
 import json
 import logging
 import re
+from typing import List
 
 from kucoin_futures.client import Trade
 from requests import exceptions
+
+from kucoin_manager.db.models.kucoin import Account, Orders
 
 logger = logging.getLogger(__name__)
 
@@ -113,54 +116,43 @@ def place_future_limit_order( # noqa WPS231 it's not actually that complex :)
                 return None
 
 
-def place_limit_order_on_all_accounts(accounts, *args, is_sandbox=False, **kwargs):
+def place_limit_order_on_all_accounts(accounts: List[Account], *args, **kwargs):
     """
     Place order for multiple account.
 
-    :param accounts: List of accounts in dict with keys: key, secret, passphrase.
-    :param is_sandbox: Indicates if it should use sandbox api or not. # noqa RST213 cannot parse *args correctly
+    :param accounts: List of accounts.
     :param *args: List of arguments passed to order placement function.
     :param **kwargs: Dict of keyword arguments passed to order placement function.
     """
-
-    for client in generate_accounts_client(accounts=accounts, is_sandbox=is_sandbox):
-        logger.error(f"\nplace_limit_order_on_all_accounts => sandbox: {is_sandbox} - {kwargs}")
-        order_id = place_future_limit_order(client, *args, **kwargs)
-        if order_id is None:
-            return None
-
-def generate_accounts_client(accounts, is_sandbox=False):
-    # TODO globalize is_sandbox
-
+    account_order_id = []
     for acc in accounts:
         logger.error(f"-\n-\n\n{acc}\n-\n-\n")
         client = Trade(
-            key=acc["api_key"],
-            secret=acc["api_secret"],
-            passphrase=acc["api_passphrase"],
-            is_sandbox=is_sandbox,
+            key=acc.api_key,
+            secret=acc.api_secret,
+            passphrase=acc.api_passphrase,
+            is_sandbox=False,
         )
-        yield client
 
-def get_accounts_from_db():
-    """
-    Gets accounts data from database and put then in json format.
+        logger.error(f"\nplace_limit_order_on_all_accounts => {kwargs}")
+        order = place_future_limit_order(client, *args, **kwargs)
+        if order:
+            account_order_id.append([acc, order['orderId']])
 
-    :Returns: List of account dict.
-    """
-    with open("account.json", "a+") as input_file:
-        input_file.seek(0)
-        line = input_file.readline()
-        if line:
-            input_file.seek(0)
-            accounts = json.load(input_file)
-        else:
-            input_file.write("[]")
-            accounts = []
-
-    return accounts
+    return account_order_id
 
 
+
+def kucoin_cancel_order(account, order_id):
+    client = Trade(
+        key=account.api_key,
+        secret=account.api_secret,
+        passphrase=account.api_passphrase,
+        is_sandbox=False,
+    )
+
+    canceled = client.cancel_order(orderId=order_id)
+    return canceled
 # TODO what we can do to improve performance:
 # if we reach the api limit then we can test proxy ip
 # if can not reach the api limit we can test async and then node js
