@@ -6,7 +6,6 @@ class Orders(models.Model):
     """
     The Order model
     """
-
     id = fields.IntField(pk=True)
 
     order_id = fields.CharField(max_length=50)
@@ -25,9 +24,8 @@ class Orders(models.Model):
 
 class Account(models.Model):
     """
-    The Order model
+    The Account model
     """
-
     id = fields.IntField(pk=True)
 
     name = fields.CharField(max_length=50)

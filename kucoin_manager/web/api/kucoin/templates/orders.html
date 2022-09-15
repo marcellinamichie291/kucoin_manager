@@ -30,6 +30,13 @@
         {% include 'navbar.html' %}
         <section>
             <div class="container d-xl-flex justify-content-xl-center align-items-xl-center">
+                <a class="btn btn-danger btn-sm"
+                   role="button"
+                   href="{{ url_for("cancel_all_orders") }}">Cancel all open orders.</a>
+            </div>
+        </section>
+        <section>
+            <div class="container d-xl-flex justify-content-xl-center align-items-xl-center">
                 <ul class="list-unstyled">
                     {% for order in orders %}
                         <li class="d-xl-flex justify-content-xl-center align-items-xl-center"
@@ -49,7 +56,7 @@
                                 </small>
                                 <a class="btn btn-danger btn-sm"
                                    role="button"
-                                   href="{{ url_for("delete_orders", order_id=order.id) }}">Cancel</a>
+                                   href="{{ url_for("cancel_orders", order_id=order.id) }}">Cancel</a>
                             </div>
                         </li>
                     {% endfor %}

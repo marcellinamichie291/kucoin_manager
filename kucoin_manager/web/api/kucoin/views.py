@@ -166,6 +166,7 @@ async def list_orders(
 ):
     orders = await Orders.filter(status="open")
     logger.info(f"list_orders, orders: {orders}")
+    print(f"\n\n\n=-=-\n canceled \n {(await Orders.first()).status} \n")
 
     return templates.TemplateResponse(
         "orders.html",
@@ -176,21 +177,30 @@ async def list_orders(
     )
 
 
-@router.get("/order/delete/{order_id}", response_class=HTMLResponse)
-async def delete_orders(
+@router.get("/order/cancel/{order_id}", response_class=HTMLResponse)
+async def cancel_orders(
     order_id: int,
 ):
     order = await Orders.get_or_none(id=order_id)
-    print("Delete Order, account: ", order.account)
     if order:
-        print("Delete Order, account: ", order.account)
-        # canceled = kucoin_cancel_order(account=order.account, order_id=order.order_id)
-        # if canceled:
-        #     order.update_from_dict({"status": "canceled"})
-        #     print(f"\n\n\n=-=-\nuanced\n{canceled}\n")
+        await kucoin_db_cancel_order(
+            account=await order.account,
+            order=order
+        )
+    return RedirectResponse(
+        router.url_path_for("list_orders"),
+        status_code=status.HTTP_302_FOUND,
+    )
 
-    # await Orders.filter(order_id=order_id).update(status="canceled")
-    # logger.info(f"len orders: {orders}")
+
+@router.get("/order/cancel-all/", response_class=HTMLResponse)
+async def cancel_all_orders():
+    orders = await Orders.filter(status="open")
+    for order in orders:
+        await kucoin_db_cancel_order(
+            account=await order.account,
+            order=order
+        )
 
     return RedirectResponse(
         router.url_path_for("list_orders"),
@@ -198,45 +208,23 @@ async def delete_orders(
     )
 
 
-# from typing import List
-
-# from fastapi import FastAPI, HTTPException
-# from pydantic import BaseModel
-# from tortoise.contrib.fastapi import HTTPNotFoundError, register_tortoise
-
-
-# app = FastAPI(title="Tortoise ORM FastAPI example")
+async def kucoin_db_cancel_order(account, order: Orders):
+    canceled = kucoin_cancel_order(account=account, order_id=order.order_id)
+    if canceled:
+        await order.update_from_dict({"status": "canceled"})
+        await order.save()
 
 
-# class Status(BaseModel):
-#     message: str
-
-
-# @app.get("/orders", response_model=List[Order_Pydantic])
-# async def get_orders():
-#     return await Order_Pydantic.from_queryset(Orders.filter(status="open"))
-
-
-# @app.get(
-#     "/oder/{oder_id}", response_model=Order_Pydantic, responses={404: {"model": HTTPNotFoundError}}
-# )
-# async def get_oder(oder_id: int):
-#     return await Order_Pydantic.from_queryset_single(Orders.get(id=oder_id))
-
-
-# @app.put(
-#     "/oder/{oder_id}", response_model=Order_Pydantic, responses={404: {"model": HTTPNotFoundError}}
-# )
-# async def update_oder(oder_id: int, oder: OrderIn_Pydantic):
-#     await Orders.filter(id=oder_id).update(**oder.dict(exclude_unset=True))
-#     return await Order_Pydantic.from_queryset_single(Orders.get(id=oder_id))
-
-
-# @app.delete("/oder/{oder_id}", response_model=Status, responses={404: {"model": HTTPNotFoundError}})
-# async def delete_oder(oder_id: int):
-#     deleted_count = await Orders.filter(id=oder_id).delete()
-#     if not deleted_count:
-#         raise HTTPException(status_code=404, detail=f"Order {oder_id} not found")
-#     return Status(message=f"Deleted oder {oder_id}")
-
-
+@router.get("/account/import/", response_class=HTMLResponse)
+async def import_accounts():
+    with open("account.json") as f:
+        accounts = json.load(f)
+        await Account.bulk_create([
+            Account(
+                name=i,
+                api_key=acc['api_key'],
+                api_secret=acc['api_secret'],
+                api_passphrase=acc['api_passphrase'],
+            )
+            for i, acc in enumerate(accounts)
+        ])

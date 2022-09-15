@@ -144,15 +144,23 @@ def place_limit_order_on_all_accounts(accounts: List[Account], *args, **kwargs):
 
 
 def kucoin_cancel_order(account, order_id):
-    client = Trade(
-        key=account.api_key,
-        secret=account.api_secret,
-        passphrase=account.api_passphrase,
-        is_sandbox=False,
-    )
+    try:
+        client = Trade(
+            key=account.api_key,
+            secret=account.api_secret,
+            passphrase=account.api_passphrase,
+            is_sandbox=False,
+        )
 
-    canceled = client.cancel_order(orderId=order_id)
-    return canceled
+        canceled = client.cancel_order(orderId=order_id)
+        return canceled
+    except Exception as e:
+        logger.error(f"Cancel failed, order_id: {order_id}, e: {e}")
+        if "The order cannot be canceled." in str(e):
+            return True
+
+# TODO Login / delete account
+
 # TODO what we can do to improve performance:
 # if we reach the api limit then we can test proxy ip
 # if can not reach the api limit we can test async and then node js
