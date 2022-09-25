@@ -54,6 +54,8 @@ class Settings(BaseSettings):
             scheme="sqlite",
             path=f"///{self.db_file}",
         )
+    
+    secret = "6bea3a1ace08e2c794e4d9377642c5936119a4642137d45f"
 
     class Config:
         env_file = ".env"

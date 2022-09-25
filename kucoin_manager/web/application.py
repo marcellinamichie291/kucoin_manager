@@ -1,11 +1,12 @@
 from importlib import metadata
 
-from fastapi import FastAPI
-from fastapi.responses import UJSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse, UJSONResponse
 from fastapi.staticfiles import StaticFiles
 from tortoise.contrib.fastapi import register_tortoise
 
 from kucoin_manager.db.config import TORTOISE_CONFIG
+from kucoin_manager.web.api.auth.exceptions import NotAuthenticatedException
 from kucoin_manager.web.api.router import api_router
 from kucoin_manager.web.lifetime import register_shutdown_event, register_startup_event
 
@@ -43,5 +44,12 @@ def get_app() -> FastAPI:
     )
 
     app.mount("/static", StaticFiles(directory="kucoin_manager/static"), name="static")
+
+    @app.exception_handler(NotAuthenticatedException)
+    def auth_exception_handler(request: Request, exc: NotAuthenticatedException):
+        """
+        Redirect the user to the login page if not logged in
+        """
+        return RedirectResponse(url='/auth/login')
 
     return app

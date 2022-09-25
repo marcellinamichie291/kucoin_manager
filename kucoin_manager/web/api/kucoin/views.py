@@ -3,12 +3,12 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette import status
-
+from kucoin_manager.web.api.auth.views import manager
 from kucoin_manager.db.models.kucoin import Account, Orders
 from kucoin_manager.web.api.kucoin.utils import (
     kucoin_cancel_order,
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @router.get("/accounts", response_class=HTMLResponse)
 async def create_account(
     request: Request,
+    user=Depends(manager),
 ) -> Any:
     """
     Creates account model in the database.
@@ -50,6 +51,7 @@ async def create_account_form(
     api_key: str = Form(None),
     api_secret: str = Form(None),
     api_passphrase: str = Form(None),
+    user=Depends(manager),
 ) -> Any:
     """
     Creates account model in the database.
@@ -78,6 +80,7 @@ async def create_account_form(
 @router.get("/future-trade", response_class=HTMLResponse)
 async def future_trade(
     request: Request,
+    user=Depends(manager),
 ) -> Any:
     """
     Test.
@@ -99,6 +102,7 @@ async def future_trade(
 @router.post("/future-trade")
 async def future_trade_form(
     request: Request,
+    user=Depends(manager),
 ) -> Any:
     """
     Test.
@@ -108,27 +112,32 @@ async def future_trade_form(
     """
     form: dict = await request.form()
     form = jsonable_encoder(form)
-
+    accounts = []
     form_account_ids = []
     if form.get("acc_all") != "on":
         for key in form.keys():
             if key.startswith("acc_"):
                 acc_id = int(key.replace("acc_", ""))
                 form_account_ids.append(acc_id)
+    else:
+        accounts = await Account.all()
 
     if form_account_ids:
         accounts = await Account.in_bulk(form_account_ids)
         accounts = accounts.values()
-    else:
-        accounts = await Account.all()
+    elif not accounts:
+        return RedirectResponse(
+            router.url_path_for("future_trade"),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     print("[future_trade_form], accounts: ", accounts)
 
-    account_order_id = place_limit_order_on_all_accounts(
+    account_order_id = await place_limit_order_on_all_accounts(
         accounts,
         symbol=form["symbol"],
         side=form["sell-buy"],
-        lever=form.get("leverage"),
+        lever=form["leverage"],
         size=form["size"],
         price=form.get("price"),
     )
@@ -138,21 +147,21 @@ async def future_trade_form(
             status_code=status.HTTP_302_FOUND,
         )
     print("account_order_id, ", account_order_id)
-    created_orders = await Orders.bulk_create([
-        Orders(
-            order_id = order_id,
-            account = account,
-            symbol = form["symbol"],
-            side = form["sell-buy"],
-            size = form["size"],
-            price = form.get("price"),
-            leverage = form.get("leverage"),
-        )
+    # created_orders = await Orders.bulk_create([
+    #     Orders(
+    #         order_id = order_id,
+    #         account = account,
+    #         symbol = form["symbol"],
+    #         side = form["sell-buy"],
+    #         size = form["size"],
+    #         price = form.get("price"),
+    #         leverage = form.get("leverage"),
+    #     )
 
-        for account, order_id in account_order_id
-    ])
+    #     for account, order_id in account_order_id
+    # ])
 
-    print("[future_trade_form], created_orders: ", created_orders)
+    # print("[future_trade_form], created_orders: ", created_orders)
 
     return RedirectResponse(
         router.url_path_for("future_trade"),
@@ -163,6 +172,7 @@ async def future_trade_form(
 @router.get("/order", response_class=HTMLResponse, )
 async def list_orders(
     request: Request,
+    user=Depends(manager),
 ):
     orders = await Orders.filter(status="open")
     logger.info(f"list_orders, orders: {orders}")
@@ -180,6 +190,7 @@ async def list_orders(
 @router.get("/order/cancel/{order_id}", response_class=HTMLResponse)
 async def cancel_orders(
     order_id: int,
+    user=Depends(manager),
 ):
     order = await Orders.get_or_none(id=order_id)
     if order:
@@ -194,7 +205,9 @@ async def cancel_orders(
 
 
 @router.get("/order/cancel-all/", response_class=HTMLResponse)
-async def cancel_all_orders():
+async def cancel_all_orders(
+    user=Depends(manager),
+):
     orders = await Orders.filter(status="open")
     for order in orders:
         await kucoin_db_cancel_order(
@@ -208,6 +221,21 @@ async def cancel_all_orders():
     )
 
 
+@router.get("/order/detail/", response_class=HTMLResponse)
+async def orders_detail(
+    user=Depends(manager),
+):
+    # await kucoin_get_order_detail(
+    # )
+
+    return RedirectResponse(
+        router.url_path_for("list_orders"),
+        status_code=status.HTTP_302_FOUND,
+    )
+
+    a = client.get_open_order_details("XBTUSDTM")
+
+
 async def kucoin_db_cancel_order(account, order: Orders):
     canceled = kucoin_cancel_order(account=account, order_id=order.order_id)
     if canceled:
@@ -216,7 +244,9 @@ async def kucoin_db_cancel_order(account, order: Orders):
 
 
 @router.get("/account/import/", response_class=HTMLResponse)
-async def import_accounts():
+async def import_accounts(
+    user=Depends(manager),
+):
     with open("account.json") as f:
         accounts = json.load(f)
         await Account.bulk_create([

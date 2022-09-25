@@ -116,7 +116,7 @@ def place_future_limit_order( # noqa WPS231 it's not actually that complex :)
                 return None
 
 
-def place_limit_order_on_all_accounts(accounts: List[Account], *args, **kwargs):
+async def place_limit_order_on_all_accounts(accounts: List[Account], *args, **kwargs):
     """
     Place order for multiple account.
 
@@ -138,6 +138,15 @@ def place_limit_order_on_all_accounts(accounts: List[Account], *args, **kwargs):
         order = place_future_limit_order(client, *args, **kwargs)
         if order:
             account_order_id.append([acc, order['orderId']])
+            await Orders.create(
+                order_id = order['orderId'],
+                account = acc,
+                symbol = kwargs["symbol"],
+                side = kwargs["side"],
+                size = kwargs["size"],
+                price = kwargs.get("price"),
+                leverage = kwargs["lever"],
+            )
 
     return account_order_id
 

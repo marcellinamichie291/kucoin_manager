@@ -143,3 +143,5 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 account.json
+*.sqlite3-shm
+*.sqlite3-wal
