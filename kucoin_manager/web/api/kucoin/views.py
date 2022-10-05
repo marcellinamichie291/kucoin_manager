@@ -64,11 +64,11 @@ async def create_account_form(
     """
 
     await Account.get_or_create(
-        name= name,
-        api_key= api_key,
-        api_secret= api_secret,
-        api_passphrase= api_passphrase,
-        api_type= "future",
+        name=name,
+        api_key=api_key,
+        api_secret=api_secret,
+        api_passphrase=api_passphrase,
+        api_type="future",
     )
 
     return RedirectResponse(
@@ -258,3 +258,19 @@ async def import_accounts(
             )
             for i, acc in enumerate(accounts)
         ])
+
+
+@router.get("/account/delete/{api_key}/", response_class=HTMLResponse)
+async def delete_account(
+    api_key: str,
+    user=Depends(manager),
+):
+    account = await Account.get_or_none(api_key=api_key)
+    if account:
+        await account.delete()
+    
+    return RedirectResponse(
+        router.url_path_for("create_account"),
+        status_code=status.HTTP_302_FOUND,
+    )
+

@@ -114,6 +114,11 @@
                                 <div class="text-block-2">{{ account.api_key }}</div>
                             </div>
                         </div>
+                        <div class="account_field">
+                            <a class="btn btn-danger btn-sm"
+                                role="button"
+                                href="{{ url_for("delete_account", api_key=account.api_key) }}">Delete</a>
+                        </div>
                     </li>
                 {% endfor %}
             </ul>
