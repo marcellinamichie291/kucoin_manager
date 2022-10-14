@@ -145,3 +145,6 @@ cython_debug/
 account.json
 *.sqlite3-shm
 *.sqlite3-wal
+node_modules/
+order_results.json
+accounts_and_order_data.json

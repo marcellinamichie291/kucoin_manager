@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "kucoin-futures-node-api": "^1.0.8",
+    "uuid": "^9.0.0"
+  }
+}
