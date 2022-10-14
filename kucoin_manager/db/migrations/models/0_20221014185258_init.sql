@@ -5,10 +5,11 @@ CREATE TABLE IF NOT EXISTS "account" (
     "api_key" VARCHAR(255) NOT NULL UNIQUE,
     "api_secret" VARCHAR(255) NOT NULL,
     "api_passphrase" VARCHAR(255) NOT NULL,
+    "api_type" VARCHAR(20) NOT NULL  DEFAULT 'future',
     "group" VARCHAR(20),
     "created_at" TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
     "modified_at" TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP
-) /* The Order model */;
+) /* The Account model */;
 CREATE TABLE IF NOT EXISTS "orders" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     "order_id" VARCHAR(50) NOT NULL,
