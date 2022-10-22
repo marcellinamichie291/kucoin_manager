@@ -1,0 +1,32 @@
+[X] list status of all open orders
+[X] cancel all orders
+[X] all created orders for cancelation
+[X] Async trading 
+[X] delete account
+[X] #TODO docker proxy
+
+===== TODO
+[] #TODO rename accounts
+[] #TODO list open orders on account (from api AND db)
+[] #TODO open orders summary for each account ('detail' function in kucoin doc)
+[] #TODO order list for each account
+[] #TODO show count of orders in list
+[-] donot retry when balance error
+
+===== BackLog
+
+[] group account
+
+[] Login Database (currently using python dictionary)
+[] Accounts Import/Export
+
+[] Database -> postgress
+[] Account DAO (reuseable session among requests) [check dummy dao for sqlite usage]
+
+[] Currencies Drop Down
+
+# TODO what we can do to improve performance:
+# if we reach the api limit then we can test proxy ip
+# if can not reach the api limit we can test async and then node js
+
+# TODO place_stop_order()
