@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     db_file: Path = TEMP_DIR / "db.sqlite3"
     db_echo: bool = False
 
+    PAGE_SIZE: int = 100
+
     @property
     def db_url(self) -> URL:
         """

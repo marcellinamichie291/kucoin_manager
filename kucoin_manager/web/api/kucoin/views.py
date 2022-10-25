@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from time import sleep
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -8,11 +9,14 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette import status
+from kucoin_manager.settings import settings
 from kucoin_manager.web.api.auth.views import manager
 from kucoin_manager.db.models.kucoin import Account, Orders
 from kucoin_manager.web.api.kucoin.utils import (
+    js_bulk_place_limit_order,
+    kucoin_cancel_all_order,
     kucoin_cancel_order,
-    place_limit_order_on_all_accounts,
+    js_get_open_orders,
 )
 
 router = APIRouter()
@@ -126,14 +130,14 @@ async def future_trade_form(
         accounts = await Account.in_bulk(form_account_ids)
         accounts = accounts.values()
     elif not accounts:
-        return RedirectResponse(
-            router.url_path_for("future_trade"),
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        return "Please select some account."
+        #     router.url_path_for("future_trade"),
+        #     status_code=status.HTTP_400_BAD_REQUEST,
+        # )
 
     print("[future_trade_form], accounts: ", accounts)
 
-    account_order_id = await place_limit_order_on_all_accounts(
+    account_order_id = await js_bulk_place_limit_order(
         accounts,
         symbol=form["symbol"],
         side=form["sell-buy"],
@@ -147,21 +151,6 @@ async def future_trade_form(
             status_code=status.HTTP_302_FOUND,
         )
     print("account_order_id, ", account_order_id)
-    # created_orders = await Orders.bulk_create([
-    #     Orders(
-    #         order_id = order_id,
-    #         account = account,
-    #         symbol = form["symbol"],
-    #         side = form["sell-buy"],
-    #         size = form["size"],
-    #         price = form.get("price"),
-    #         leverage = form.get("leverage"),
-    #     )
-
-    #     for account, order_id in account_order_id
-    # ])
-
-    # print("[future_trade_form], created_orders: ", created_orders)
 
     return RedirectResponse(
         router.url_path_for("future_trade"),
@@ -176,7 +165,6 @@ async def list_orders(
 ):
     orders = await Orders.filter(status="open")
     logger.info(f"list_orders, orders: {orders}")
-    print(f"\n\n\n=-=-\n canceled \n {(await Orders.first()).status} \n")
 
     return templates.TemplateResponse(
         "orders.html",
@@ -204,8 +192,8 @@ async def cancel_orders(
     )
 
 
-@router.get("/order/cancel-all/", response_class=HTMLResponse)
-async def cancel_all_orders(
+@router.get("/order/cancel-db/", response_class=HTMLResponse)
+async def cancel_db_orders(
     user=Depends(manager),
 ):
     orders = await Orders.filter(status="open")
@@ -221,19 +209,46 @@ async def cancel_all_orders(
     )
 
 
-@router.get("/order/detail/", response_class=HTMLResponse)
-async def orders_detail(
+@router.get("/order/cancel-all/", response_class=HTMLResponse)
+async def cancel_all_orders(
     user=Depends(manager),
 ):
-    # await kucoin_get_order_detail(
-    # )
-
+    accounts = await Account.all()
+    for account in accounts:
+        cancel_ids = await kucoin_cancel_all_order(account)
+        
+        order = Orders.filter(order_id__in=cancel_ids)
+        await order.update_from_dict({"status": "canceled"})
+        await order.save()
+    
     return RedirectResponse(
         router.url_path_for("list_orders"),
         status_code=status.HTTP_302_FOUND,
     )
 
-    a = client.get_open_order_details("XBTUSDTM")
+
+@router.get("/order/detail/", response_class=HTMLResponse)
+async def orders_detail(
+    request: Request,
+    symbol: str = "",
+    page: int = 1,
+    user=Depends(manager),
+):
+    symbol = symbol or "XBTUSDTM"
+    accounts = await Account.all().order_by("name").offset((page-1)*settings.PAGE_SIZE).limit(settings.PAGE_SIZE)
+
+    account_details = js_get_open_orders(
+        accounts=accounts,
+        symbol=symbol
+    )
+
+    return templates.TemplateResponse(
+        "order_details.html",
+        {
+            "request": request,
+            "accounts": [],
+        },
+    )
 
 
 async def kucoin_db_cancel_order(account, order: Orders):
@@ -249,12 +264,40 @@ async def import_accounts(
 ):
     with open("account.json") as f:
         accounts = json.load(f)
-        await Account.bulk_create([
-            Account(
-                name=i,
-                api_key=acc['api_key'],
-                api_secret=acc['api_secret'],
-                api_passphrase=acc['api_passphrase'],
-            )
-            for i, acc in enumerate(accounts)
-        ])
+        account_obj = []
+        for i, acc in enumerate(accounts):
+            try:
+                await Account.get_or_create(
+                    name=i,
+                    api_key=acc['api_key'],
+                    api_secret=acc['api_secret'],
+                    api_passphrase=acc['api_passphrase'],
+                )
+            except Exception as e:
+                print("=======")
+                print(e)
+                print("=======")
+    
+    return RedirectResponse(
+        router.url_path_for("create_account"),
+        status_code=status.HTTP_302_FOUND,
+    )
+
+        # await Account.bulk_create(
+        #     account_obj
+        # )
+
+
+@router.get("/account/delete/{api_key}/", response_class=HTMLResponse)
+async def delete_account(
+    api_key: str,
+    user=Depends(manager),
+):
+    account = await Account.get_or_none(api_key=api_key)
+    if account:
+        await account.delete()
+    
+    return RedirectResponse(
+        router.url_path_for("create_account"),
+        status_code=status.HTTP_302_FOUND,
+    )

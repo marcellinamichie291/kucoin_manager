@@ -32,7 +32,12 @@
             <div class="container d-xl-flex justify-content-xl-center align-items-xl-center">
                 <a class="btn btn-danger btn-sm"
                    role="button"
-                   href="{{ url_for("cancel_all_orders") }}">Cancel all open orders.</a>
+                   href="{{ url_for("cancel_db_orders") }}">Cancel orders from this site.</a>
+            </div>
+            <div class="container d-xl-flex justify-content-xl-center align-items-xl-center">
+                <a class="btn btn-danger btn-sm" role="button" href="{{ url_for("cancel_all_orders") }}">
+                    WARNING! Cancel any order created from anywhere.
+                </a>
             </div>
         </section>
         <section>

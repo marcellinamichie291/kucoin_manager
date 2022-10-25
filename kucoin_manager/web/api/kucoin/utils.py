@@ -1,14 +1,23 @@
 import json
 import logging
 import re
+import subprocess
+import time
 from typing import List
 
 from kucoin_futures.client import Trade
 from requests import exceptions
+from urllib3.exceptions import NewConnectionError
 
 from kucoin_manager.db.models.kucoin import Account, Orders
 
 logger = logging.getLogger(__name__)
+find_node = subprocess.Popen(
+    ["which", "node"],
+    stdout=subprocess.PIPE
+)
+node_js_path = find_node.stdout.read().decode().strip()
+
 
 FIX_MAX_LEVERAGE_ERROR = True
 
@@ -151,6 +160,81 @@ async def place_limit_order_on_all_accounts(accounts: List[Account], *args, **kw
     return account_order_id
 
 
+async def js_bulk_place_limit_order(accounts: List[Account], *args, **kwargs):
+    accounts_and_order_data = {
+        "accounts": [
+            {
+                "api_key": acc.api_key,
+                "api_secret": acc.api_secret,
+                "api_passphrase": acc.api_passphrase,
+            } for acc in accounts
+        ],
+        "side": kwargs["side"],
+        "symbol": kwargs["symbol"],
+        "type": "limit",
+        "leverage": kwargs["lever"],
+        "size": kwargs["size"],
+        "price": kwargs.get("price"),
+    }
+    
+    order_results = run_js_code("place_order", accounts_and_order_data)
+
+    failed_orders = []
+    if order_results:
+        for order in order_results:
+            if order["status"] == "success":
+                await Orders.create(
+                    account = Account.get(api_key=order['api_key']),
+                    order_id = order['order_id'],
+                    symbol = order["symbol"],
+                    side = order["side"],
+                    size = order["size"],
+                    price = order.get("price"),
+                    leverage = order["leverage"],
+                )
+            else:
+                failed_orders.append(order)
+
+    return failed_orders
+
+
+def run_js_code(js_file_name, in_data):
+    js_base_path = "kucoin_manager/js/"
+    with open(js_base_path + f"data/{js_file_name}_in.json", "w") as f:
+        json.dump(in_data, f)
+
+    p = subprocess.Popen(
+        [
+            node_js_path,
+            js_base_path + f"{js_file_name}.js"
+        ],
+        stdout=subprocess.PIPE
+    )
+    out = p.stdout.read().decode()
+    print(out)
+
+    with open(js_base_path + f"data/{js_file_name}_out.json") as f:
+        order_results = json.load(f)
+
+    return order_results
+
+
+async def kucoin_cancel_all_order(account: Account):
+    try:
+        client = Trade(
+            key=account.api_key,
+            secret=account.api_secret,
+            passphrase=account.api_passphrase,
+            is_sandbox=False,
+        )
+
+        cancel_ids = client.cancel_all_limit_order()
+        return cancel_ids
+    except Exception as e:
+        logger.error(f"Cancel failed, account name: {account.name}, e: {e}")
+        if "The order cannot be canceled." in str(e):
+            return True
+    
 
 def kucoin_cancel_order(account, order_id):
     try:
@@ -168,10 +252,52 @@ def kucoin_cancel_order(account, order_id):
         if "The order cannot be canceled." in str(e):
             return True
 
-# TODO Login / delete account
 
-# TODO what we can do to improve performance:
-# if we reach the api limit then we can test proxy ip
-# if can not reach the api limit we can test async and then node js
+def js_get_open_orders(accounts, symbol):
+    accounts_and_symbol = {
+        "accounts": [
+            {
+                "name": acc.name,
+                "api_key": acc.api_key,
+                "api_secret": acc.api_secret,
+                "api_passphrase": acc.api_passphrase,
+            } for acc in accounts
+        ],
+        "symbol": symbol,
+    }
+    
+    account_details = run_js_code("get_open_orders", accounts_and_symbol)
+    return account_details
+        # client = Trade(
+        #     key=account.api_key,
+        #     secret=account.api_secret,
+        #     passphrase=account.api_passphrase,
+        #     is_sandbox=False,
+        # )
 
-# def place_stop_order()
+        # detail = client.get_open_order_details(symbol=symbol)
+        # return {
+        #     "buy_size": detail["openOrderBuySize"],
+        #     "sell_size": detail["openOrderSellSize"],
+        #     "buy_cost": detail["openOrderBuyCost"],
+        #     "sell_cost": detail["openOrderSellCost"],
+        #     "currency": detail["settleCurrency"],
+        # }
+    
+    # return {
+    #     "buy_size": str(err_msg),
+    #     "sell_size": f"Retry: {retry_count}",
+    #     "buy_cost": "",
+    #     "sell_cost": "",
+    #     "currency": "",
+    # }
+
+
+# class acc:
+#     name = "test"
+#     api_key = "6347f074d8b5a600010d5c73"
+#     api_secret = "e8483378-3b96-4f6b-83d1-a48734e74691"
+#     api_passphrase = "dtNe6tF6Sy4PtXV"
+
+# a = kucoin_get_open_orders(acc, "XBTUSDTM")
+# b = 3

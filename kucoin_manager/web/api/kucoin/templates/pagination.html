@@ -1,0 +1,21 @@
+<nav>
+<ul class="pagination justify-content-center mb-5">
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '1')">1</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '2')">2</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '3')">3</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '4')">4</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '5')">5</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '6')">6</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '7')">7</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '8')">8</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '9')">9</a></li>
+    <li class="page-item"><a class="page-link" onclick="addUrlParameter('page', '10')">10</a></li>
+</ul> 
+</nav>
+<script>
+    function addUrlParameter(name, value) {
+    var searchParams = new URLSearchParams(window.location.search)
+    searchParams.set(name, value)
+    window.location.search = searchParams.toString()
+    }
+</script>

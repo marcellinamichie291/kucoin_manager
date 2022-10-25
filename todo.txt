@@ -1,17 +1,20 @@
 [X] list status of all open orders
+[X] all created orders for cancellation
+[X] don't retry when balance error
+
 [X] cancel all orders
-[X] all created orders for cancelation
 [X] Async trading 
 [X] delete account
-[X] #TODO docker proxy
+[X] docker proxy
+[X] pagination 
+[X] open orders summary for each account ('detail' function in kucoin doc)
 
 ===== TODO
-[] #TODO rename accounts
-[] #TODO list open orders on account (from api AND db)
-[] #TODO open orders summary for each account ('detail' function in kucoin doc)
-[] #TODO order list for each account
+[] #TODO js open orders summary
+
 [] #TODO show count of orders in list
-[-] donot retry when balance error
+[] #TODO rename accounts
+[] #TODO Long-running pages should be loaded the a loading icon spins until ajax request finishes
 
 ===== BackLog
 

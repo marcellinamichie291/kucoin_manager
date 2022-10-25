@@ -17,14 +17,21 @@
                             <a href="{{ url_for('future_trade') }}"
                                aria-current="page"
                                class="nav-link w--current">Future</a>
+                        </li>
+                        <li>
                             <a href="#margin_URL" class="nav-link">Margin/Spot</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('list_orders') }}" class="nav-link smaller-nav">orders</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('orders_detail') }}" class="nav-link smaller-nav">summary</a>
                         </li>
                     </ul>
                 </nav>
                 <div class="menu-button w-nav-button">
                     <div class="w-icon-nav-menu"></div>
                 </div>
-                <a href="{{ url_for('list_orders') }}" class="nav-link smaller-nav">orders</a>
             </div>
         </div>
     </div>
