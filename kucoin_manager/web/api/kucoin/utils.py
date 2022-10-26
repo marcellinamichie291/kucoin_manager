@@ -178,23 +178,24 @@ async def js_bulk_place_limit_order(accounts: List[Account], *args, **kwargs):
     
     order_results = run_js_code("place_order", accounts_and_order_data)
 
-    failed_orders = []
-    if order_results:
-        for order in order_results:
-            if order["status"] == "success":
-                await Orders.create(
-                    account = Account.get(api_key=order['api_key']),
-                    order_id = order['order_id'],
-                    symbol = order["symbol"],
-                    side = order["side"],
-                    size = order["size"],
-                    price = order.get("price"),
-                    leverage = order["leverage"],
-                )
-            else:
-                failed_orders.append(order)
+    for order in order_results:
+        if order["status"] == "success":
+            status = "open"
+            order_id = order['order_id']
+        else:
+            status = "fail"
+            order_id = ""
 
-    return failed_orders
+        await Orders.create(
+            account = await Account.get(api_key=order['api_key']),
+            order_id = order_id,
+            symbol = order["symbol"],
+            side = order["side"],
+            size = order["size"],
+            price = order.get("price"),
+            leverage = order["leverage"],
+            status = status
+        )
 
 
 def run_js_code(js_file_name, in_data):
@@ -227,12 +228,16 @@ async def kucoin_cancel_all_order(account: Account):
             is_sandbox=False,
         )
 
-        cancel_ids = client.cancel_all_limit_order()
+        cancel_ids = client.cancel_all_limit_order("XBTUSDTM") #TODO
         return cancel_ids
     except Exception as e:
-        logger.error(f"Cancel failed, account name: {account.name}, e: {e}")
         if "The order cannot be canceled." in str(e):
+            logger.error(f"Cancel failed - Cancel is not possible - account name: {account.name}")
             return True
+        if "html" in str(e):
+            logger.error(f"Cancel failed - [Rate Limit] - account name: {account.name}")
+            return True
+        logger.error(f"Cancel failed, account name: {account.name}, e: {e}")
     
 
 def kucoin_cancel_order(account, order_id):

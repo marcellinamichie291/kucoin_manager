@@ -92,7 +92,7 @@ async def future_trade(
     :param request: request object
     :Returns: Template response
     """
-    accounts = await Account.all()
+    accounts = await Account.all().order_by("-created_at")
 
     return templates.TemplateResponse(
         "future_trade.html",
@@ -118,26 +118,18 @@ async def future_trade_form(
     form = jsonable_encoder(form)
     accounts = []
     form_account_ids = []
-    if form.get("acc_all") != "on":
-        for key in form.keys():
-            if key.startswith("acc_"):
-                acc_id = int(key.replace("acc_", ""))
-                form_account_ids.append(acc_id)
-    else:
-        accounts = await Account.all()
+    for key in form.keys():
+        if key.startswith("acc_"):
+            acc_id = int(key.replace("acc_", ""))
+            form_account_ids.append(acc_id)
 
     if form_account_ids:
         accounts = await Account.in_bulk(form_account_ids)
         accounts = accounts.values()
     elif not accounts:
         return "Please select some account."
-        #     router.url_path_for("future_trade"),
-        #     status_code=status.HTTP_400_BAD_REQUEST,
-        # )
 
-    print("[future_trade_form], accounts: ", accounts)
-
-    account_order_id = await js_bulk_place_limit_order(
+    await js_bulk_place_limit_order(
         accounts,
         symbol=form["symbol"],
         side=form["sell-buy"],
@@ -145,12 +137,6 @@ async def future_trade_form(
         size=form["size"],
         price=form.get("price"),
     )
-    if not account_order_id:
-        return RedirectResponse(
-            router.url_path_for("future_trade"),
-            status_code=status.HTTP_302_FOUND,
-        )
-    print("account_order_id, ", account_order_id)
 
     return RedirectResponse(
         router.url_path_for("future_trade"),
@@ -163,7 +149,7 @@ async def list_orders(
     request: Request,
     user=Depends(manager),
 ):
-    orders = await Orders.filter(status="open")
+    orders = await Orders.exclude(status="canceled").values()
     logger.info(f"list_orders, orders: {orders}")
 
     return templates.TemplateResponse(
@@ -186,6 +172,7 @@ async def cancel_orders(
             account=await order.account,
             order=order
         )
+
     return RedirectResponse(
         router.url_path_for("list_orders"),
         status_code=status.HTTP_302_FOUND,
@@ -196,7 +183,7 @@ async def cancel_orders(
 async def cancel_db_orders(
     user=Depends(manager),
 ):
-    orders = await Orders.filter(status="open")
+    orders = await Orders.exclude(status="canceled")
     for order in orders:
         await kucoin_db_cancel_order(
             account=await order.account,
@@ -213,13 +200,13 @@ async def cancel_db_orders(
 async def cancel_all_orders(
     user=Depends(manager),
 ):
-    accounts = await Account.all()
+    accounts = await Account.filter(name="erfan")
     for account in accounts:
         cancel_ids = await kucoin_cancel_all_order(account)
-        
-        order = Orders.filter(order_id__in=cancel_ids)
-        await order.update_from_dict({"status": "canceled"})
-        await order.save()
+
+        if type(cancel_ids) == dict:
+            ids = cancel_ids.get('cancelledOrderIds', [])
+            await Orders.filter(order_id__in=ids).update(status="canceled")
     
     return RedirectResponse(
         router.url_path_for("list_orders"),
@@ -246,12 +233,17 @@ async def orders_detail(
         "order_details.html",
         {
             "request": request,
-            "accounts": [],
+            "accounts": account_details,
         },
     )
 
 
 async def kucoin_db_cancel_order(account, order: Orders):
+    if order.status == "fail":
+        await order.update_from_dict({"status": "canceled"})
+        await order.save()
+        return
+
     canceled = kucoin_cancel_order(account=account, order_id=order.order_id)
     if canceled:
         await order.update_from_dict({"status": "canceled"})
@@ -264,7 +256,6 @@ async def import_accounts(
 ):
     with open("account.json") as f:
         accounts = json.load(f)
-        account_obj = []
         for i, acc in enumerate(accounts):
             try:
                 await Account.get_or_create(
