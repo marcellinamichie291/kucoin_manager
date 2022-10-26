@@ -8,6 +8,8 @@
 [X] docker proxy
 [X] pagination 
 [X] open orders summary for each account ('detail' function in kucoin doc)
+[X] js open orders summary
+[X] future trade account selection javascript side (clicking all selects all in frontend)
 
 ===== TODO
 [] #TODO js open orders summary

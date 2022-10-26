@@ -7,7 +7,6 @@ from typing import List
 
 from kucoin_futures.client import Trade
 from requests import exceptions
-from urllib3.exceptions import NewConnectionError
 
 from kucoin_manager.db.models.kucoin import Account, Orders
 
@@ -267,7 +266,29 @@ def js_get_open_orders(accounts, symbol):
     }
     
     account_details = run_js_code("get_open_orders", accounts_and_symbol)
-    return account_details
+    cleansed_data = []
+    for acc in account_details:
+        if acc['status'] == "success":
+            cleansed_data.append({
+                "name": acc['name'],
+                "buy_size": acc['data']['openOrderBuySize'],
+                "sell_size": acc['data']['openOrderSellSize'],
+                "buy_cost": acc['data']['openOrderBuyCost'],
+                "sell_cost": acc['data']['openOrderSellCost'],
+                "currency":acc['data']['settleCurrency'],
+                "symbol": acc['symbol'],
+            })
+        else:
+            cleansed_data.insert(0, {
+                "name": acc['name'],
+                "buy_size": acc['status'],
+                "sell_size": acc['msg'],
+                "buy_cost": acc['retry_count'],
+                "sell_cost": acc.get('code') or "",
+                "symbol": acc['symbol'],
+            })
+
+    return cleansed_data
         # client = Trade(
         #     key=account.api_key,
         #     secret=account.api_secret,

@@ -52,7 +52,6 @@ async function place_order(client, side, symbol, type, leverage, size, price, fa
             result.msg = r.msg
         }
 
-        console.log(result);        
         return result
     } catch (err) {
         if (err.response && err.response.status == 401) {
@@ -67,12 +66,10 @@ async function place_order(client, side, symbol, type, leverage, size, price, fa
             result.msg = err.message
 
             console.error(err)
-            // console.log(`${err.response.statusText} : ${err.response.data.code} - ${err.response.data.msg}`)
         }
 
         if (fail_count < 10) {
             console.log(`${client.apiKey} - Retrying err: ${result.msg}`)
-            // console.log(`${client.apiKey.substring(5, 8)} - Retrying err: ${result.msg}`)
             return await place_order(client, side, symbol, type, leverage, size, price, fail_count = fail_count+1)
         }
 
@@ -82,7 +79,6 @@ async function place_order(client, side, symbol, type, leverage, size, price, fa
 
 async function bulk_config_and_place_order(accounts, side, symbol, type, leverage, size, price) {
     promisees = accounts.map(account => {
-        console.log(account)
         return config_and_place_order(
             account.api_key,
             account.api_secret,

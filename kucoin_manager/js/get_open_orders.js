@@ -18,25 +18,23 @@ const fs = require('fs');
 // }).catch((err) => {
 // });
 
-FAIL_COUNT_THRESHOLD = 0;
+const RETRY_COUNT_THRESHOLD = 3;
+const RETRY_DELAY = 100;
 
 async function get_open_orders(name, apiKey, secretKey, passphrase, symbol) {
     params = {
         status: "open",
         symbol: symbol,
     }
-    result = await run_kucoin_function(
-        "getAccountOverview",
+    let result = await run_kucoin_function(
+        "getOpenOrderStatistics",
         params,
         apiKey,
         secretKey,
         passphrase
     );
 
-    console.log(result);
-    
     result.name =  name
-    result.status =  "fail"
     result.symbol =  symbol
     return result
 }
@@ -47,7 +45,7 @@ async function run_kucoin_function(
     apiKey,
     secretKey,
     passphrase,
-    fail_count = 0
+    retry_count = 0
 ) {
     const config = {
         apiKey: apiKey,
@@ -59,9 +57,10 @@ async function run_kucoin_function(
     const client = new api();
     client.init(config);
 
-    result = {
+    let result = {
         status: "fail",
-        msg: "no msg"
+        msg: "no msg",
+        retry_count: retry_count
     };
 
     try {
@@ -72,7 +71,6 @@ async function run_kucoin_function(
             result.status = "success"
             result.data = r.data
         } else {
-            console.log("HERE FAILED mf");
             console.log(r.data);
             result.msg = `[${r.code}] - ${r.data}`;
             result.status = "fail";
@@ -86,17 +84,18 @@ async function run_kucoin_function(
             return result;
         } else if (err.response && err.response.status == 429) {
             result.msg = "[429] - Too many request";
-            // await new Promise((r) => setTimeout(r, 100));
-        } else if (err.response && err.response.status == 500) {
+            await new Promise((r) => setTimeout(r, 100));
+        } else if (err.response && err.response.status == RETRY_DELAY) {
+            console.log(err)
             result.msg = "[500] - Kucoin is down!!";
-            // await new Promise((r) => setTimeout(r, 1000));
+            await new Promise((r) => setTimeout(r, RETRY_DELAY*2));
         } else {
-            result.msg = `[Unknown Error] - ${err.message}`;
+            result.msg = `[Unknown Error] - Retry: ${retry_count} - Message: ${err.message}`;
             console.error(result.msg);
             // console.log(`${err.response.statusText} : ${err.response.data.code} - ${err.response.data.msg}`)
         }
 
-        if (fail_count < FAIL_COUNT_THRESHOLD) {
+        if (retry_count < RETRY_COUNT_THRESHOLD) {
             console.log(`Retrying err: ${result.msg}`);
             return await run_kucoin_function(
                 kucoin_function,
@@ -104,17 +103,16 @@ async function run_kucoin_function(
                 apiKey,
                 secretKey,
                 passphrase,
-                (fail_count = fail_count + 1)
+                retry_count + 1
             );
         }
 
-        result.fail_count = fail_count;
         return result;
     }
 }
 
 async function bulk_config_and_get_open_orders(accounts, symbol) {
-    promisees = accounts.map(account => {
+    let promisees = accounts.map(account => {
         return get_open_orders(
             account.name,
             account.api_key,
@@ -125,7 +123,7 @@ async function bulk_config_and_get_open_orders(accounts, symbol) {
     });
 
     console.time(`Sent ${promisees.length} request in`)
-    res = await Promise.all(promisees)
+    let res = await Promise.all(promisees)
     console.log(`\n`)
     console.timeEnd(`Sent ${promisees.length} request in`)
     console.log(`\n`)
@@ -138,12 +136,7 @@ async function read_from_file_get_open_orders() {
 
     responses = await bulk_config_and_get_open_orders(
         data.accounts,
-        data.side,
         data.symbol,
-        data.type,
-        data.leverage,
-        data.size,
-        data.price,
     )
 
     fs.writeFileSync(__dirname+"/data/get_open_orders_out.json", JSON.stringify(responses), "utf-8")
