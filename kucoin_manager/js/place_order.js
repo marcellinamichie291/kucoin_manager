@@ -2,21 +2,34 @@ const api = require('kucoin-futures-node-api')
 const { v4: uuidv4 } = require('uuid')
 const fs = require('fs');
 
-async function config_and_place_order(apiKey, secretKey, passphrase, side, symbol, type, leverage, size, price){
+async function config_and_place_order(
+    apiKey,
+    secretKey,
+    passphrase,
+    side,
+    symbol,
+    type,
+    leverage,
+    size,
+    price
+) {
     const config = {
         apiKey: apiKey,
         secretKey: secretKey,
         passphrase: passphrase,
-        environment: 'live'
-    }
+        environment: "live",
+    };
 
-    const client = new api()
-    client.init(config)
+    const client = new api();
+    client.init(config);
 
-    return await place_order(client, side, symbol, type, leverage, size, price)
+    console.time(`${client.apiKey} took: `);
+    let res = await place_order(client, side, symbol, type, leverage, size, price);
+    console.timeEnd(`${client.apiKey} took: `);
+    return res;
 }
 
-async function place_order(client, side, symbol, type, leverage, size, price, fail_count=0) {
+async function place_order(client, side, symbol, type, leverage, size, price, retry_count = 0) {
     params = {
         clientOid: uuidv4(),
         side: side,
@@ -29,7 +42,7 @@ async function place_order(client, side, symbol, type, leverage, size, price, fa
     if (type == "limit") {
         params.price = price
     }
-    result = {
+    let result = {
         "api_key": client.apiKey,
         "status": "fail",
         "side": side,
@@ -52,33 +65,45 @@ async function place_order(client, side, symbol, type, leverage, size, price, fa
             result.msg = r.msg
         }
 
-        return result
+        return result;
     } catch (err) {
         if (err.response && err.response.status == 401) {
             result.msg = err.response.data.msg
 
             return result
-        } else if (err.response && err.response.status == 429) {
-            result.msg = "Too many request"
+        } else if ((err.response && err.response.status == 429) || err.code == "ECONNRESET") {
+            result.msg = `Too many request - code: ${
+                err.code == undefined ? 429 : "ECONNRESET"
+            }`;
 
-            await new Promise(r => setTimeout(r, 1000));
+            // await new Promise(r => setTimeout(r, 100));
         } else {
-            result.msg = err.message
+            result.msg = err.message;
 
-            console.error(err)
+            console.error(err);
         }
 
-        if (fail_count < 10) {
+        if (retry_count < 10) {
             console.log(`${client.apiKey} - Retrying err: ${result.msg}`)
-            return await place_order(client, side, symbol, type, leverage, size, price, fail_count = fail_count+1)
+            return await place_order(client, side, symbol, type, leverage, size, price, retry_count = retry_count+1)
         }
 
-        return result
+        // TODO
+        result.network_fail = true;
+        // console.log("Fucked up");
+        return result;
     }    
 }
 
 async function bulk_config_and_place_order(accounts, side, symbol, type, leverage, size, price) {
-    promisees = accounts.map(account => {
+    // TODO
+    fake_accounts = Array(3).fill(accounts).flat();
+
+    // TODO
+    accounts = accounts.slice(0, 30)
+    console.log(`accounts length: ${accounts.length}`);
+
+    promisees = accounts.map((account) => {
         return config_and_place_order(
             account.api_key,
             account.api_secret,
@@ -91,12 +116,22 @@ async function bulk_config_and_place_order(accounts, side, symbol, type, leverag
             price
         );
     });
-    console.time(`Sent ${promisees.length} request in`)
-    res = await Promise.all(promisees)
-    console.log(`\n`)
-    console.timeEnd(`Sent ${promisees.length} request in`)
-    console.log(`\n`)
-    return res
+    console.time(`Sent ${promisees.length} request in`);
+    res = await Promise.all(promisees);
+
+    // TODO
+    let fail_count = 0;
+    res.forEach((result) => {
+        if (result.network_fail) {
+            fail_count += 1;
+        }
+    });
+
+    console.log(`${fail_count} request failed!`);
+    console.log(`\n`);
+    console.timeEnd(`Sent ${promisees.length} request in`);
+    console.log(`\n`);
+    return res;
 }
 
 async function read_from_file_place_order() {
@@ -113,7 +148,13 @@ async function read_from_file_place_order() {
         data.price,
     )
 
-    fs.writeFileSync(__dirname+"/data/place_order_out.json", JSON.stringify(responses), "utf-8")
+    // TODO
+    console.log("writing to file");
+    fs.writeFileSync(
+        __dirname + "/data/place_order_out.json",
+        JSON.stringify(responses),
+        "utf-8"
+    );
 }
 
 read_from_file_place_order()
