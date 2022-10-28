@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS "account" (
 ) /* The Account model */;
 CREATE TABLE IF NOT EXISTS "orders" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    "order_id" VARCHAR(50) NOT NULL,
+    "order_id" VARCHAR(50)  UNIQUE,
     "symbol" VARCHAR(20) NOT NULL,
     "side" VARCHAR(4) NOT NULL,
     "size" VARCHAR(10) NOT NULL,
