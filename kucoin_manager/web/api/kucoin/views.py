@@ -38,7 +38,7 @@ async def create_account(
     :Returns: Template response
     """
 
-    accounts = await Account.all()
+    accounts = await Account.all().order_by("-created_at")
 
     return templates.TemplateResponse(
         "accounts.html",
@@ -116,12 +116,12 @@ async def future_trade_form(
     """
     form: dict = await request.form()
     form = jsonable_encoder(form)
-    accounts = []
-    form_account_ids = []
+    accounts = None
+    form_account_ids = set()
     for key in form.keys():
-        if key.startswith("acc_"):
+        if key.startswith("acc_") and key != 'acc_all':
             acc_id = int(key.replace("acc_", ""))
-            form_account_ids.append(acc_id)
+            form_account_ids.add(acc_id)
 
     if form_account_ids:
         accounts = await Account.in_bulk(form_account_ids)
@@ -149,8 +149,19 @@ async def list_orders(
     request: Request,
     user=Depends(manager),
 ):
-    orders = await Orders.exclude(status="canceled").values()
-    logger.info(f"list_orders, orders: {orders}")
+    orders = await Orders.exclude(status="canceled").order_by("created_at", "status").values(
+        "id",
+        "order_id",
+        "symbol",
+        "side",
+        "size",
+        "price",
+        "leverage",
+        "status",
+        "message",
+        "created_at",
+        "account_id",
+    )
 
     return templates.TemplateResponse(
         "orders.html",
