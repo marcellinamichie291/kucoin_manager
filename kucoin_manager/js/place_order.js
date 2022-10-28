@@ -2,6 +2,8 @@ const api = require('kucoin-futures-node-api')
 const { v4: uuidv4 } = require('uuid')
 const fs = require('fs');
 
+const REQUEST_INTERVALS = 105
+
 async function config_and_place_order(
     apiKey,
     secretKey,
@@ -23,9 +25,8 @@ async function config_and_place_order(
     const client = new api();
     client.init(config);
 
-    // console.time(`${client.apiKey} took: `);
     let res = await place_order(client, side, symbol, type, leverage, size, price);
-    // console.timeEnd(`${client.apiKey} took: `);
+    // console.log(`${new Date(Date.now())} ${client.apiKey} DONE`);
     return res;
 }
 
@@ -36,8 +37,7 @@ async function place_order(
     type,
     leverage,
     size,
-    price,
-    retry_count = 0
+    price
 ) {
     params = {
         clientOid: uuidv4(),
@@ -51,6 +51,7 @@ async function place_order(
     if (type == "limit") {
         params.price = price;
     }
+
     let result = {
         status: "fail",
         retry: false,
@@ -58,8 +59,8 @@ async function place_order(
 
         account: {
             api_key: client.apiKey,
-            secret_key: client.secretKey,
-            passphrase: client.passphrase,
+            api_secret: client.secretKey,
+            api_passphrase: client.passphrase,
         },
 
         side: side,
@@ -69,6 +70,7 @@ async function place_order(
         leverage: leverage,
         type: type,
     };
+
     try {
         let r = await client.placeOrder(params);
         result.code = r.code;
@@ -80,7 +82,6 @@ async function place_order(
             result.msg = r.msg;
         }
 
-        console.log("success");
         return result;
     } catch (err) {
         if (err.response && err.response.status == 401) {
@@ -89,25 +90,20 @@ async function place_order(
             return result;
         } else if (
             (err.response && err.response.status == 429) ||
-            err.code == "ECONNRESET"
+            err.code == "ECONNRESET" ||
+            err.code == "ETIMEDOUT"
         ) {
             result.msg = `Too many request - code: ${
-                err.code == undefined ? 429 : "ECONNRESET"
+                err.code == undefined ? 429 : err.code
             }`;
-            console.log(result.msg);
-            // await new Promise(r => setTimeout(r, 100));
         } else {
             result.msg = err.message;
 
             console.error(err);
         }
 
-        // if (retry_count < 10) {
-        //     console.log(`${client.apiKey} - Retrying err: ${result.msg}`)
-        //     return await place_order(client, side, symbol, type, leverage, size, price, retry_count = retry_count+1)
-        // }
-
         result.retry = true;
+        console.log(result.msg);
         return result;
     }
 }
@@ -121,24 +117,17 @@ async function bulk_config_and_place_order(
     size,
     price
 ) {
-    // TODO
-    accounts = Array(1).fill(accounts).flat();
-
+    // accounts = Array(2).fill(accounts).flat()
     console.log(`accounts length: ${accounts.length}`);
-    // const chunkSize = 10000;
     let res = [];
     let to_retry_results = [];
     while (true) {
-        // for (let i = 0; i < accounts.length; i += chunkSize) {
-        //     console.log(`Start: ${i}, End: ${i + chunkSize}`);
-        //     const accounts_chunk = accounts.slice(i, i + chunkSize);
         if (to_retry_results.length > 0) {
 
-            console.log(to_retry_results);
             accounts = to_retry_results.map((fail_res) => fail_res.account);
             console.log(`Failed accounts length: ${accounts.length}`);
         }
-        const { succeed, failed } = await place_chunk_order(
+        const { succeed, failed } = await create_promisees(
             accounts,
             side,
             symbol,
@@ -157,8 +146,8 @@ async function bulk_config_and_place_order(
     return res;
 }
 
-async function place_chunk_order(
-    accounts_chunk,
+async function create_promisees(
+    accounts,
     side,
     symbol,
     type,
@@ -166,8 +155,11 @@ async function place_chunk_order(
     size,
     price
 ) {
-    const promisees = accounts_chunk.map((account) => {
-        return config_and_place_order(
+    let promisees = []
+    console.time(`Sent ${accounts.length} request in`);
+    for (let index = 0; index < accounts.length; index++) {
+        const account = accounts[index];
+        let prom = config_and_place_order(
             account.api_key,
             account.api_secret,
             account.api_passphrase,
@@ -178,18 +170,18 @@ async function place_chunk_order(
             size,
             price
         );
-    });
+        await new Promise(r => setTimeout(r, REQUEST_INTERVALS));
+        promisees.push(prom)
+    }    
 
-    console.log(`Start ${new Date(Date.now())}`);
-    console.time(`Sent ${promisees.length} request in`);
     const chunk_res = await Promise.all(promisees);
-    console.timeEnd(`Sent ${promisees.length} request in`);
+    console.timeEnd(`Sent ${accounts.length} request in`);
+
 
     const succeed = chunk_res.filter((result) => !result.retry);
     const failed = chunk_res.filter((result) => result.retry);
     console.log(`${failed.length} request failed!`);
 
-    await new Promise((r) => setTimeout(r, 15000));
     return { succeed, failed };
 }
 
@@ -207,7 +199,6 @@ async function read_from_file_place_order() {
         data.price,
     )
 
-    // TODO
     console.log("writing to file");
     fs.writeFileSync(
         __dirname + "/data/place_order_out.json",
