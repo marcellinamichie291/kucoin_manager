@@ -23,13 +23,22 @@ async function config_and_place_order(
     const client = new api();
     client.init(config);
 
-    console.time(`${client.apiKey} took: `);
+    // console.time(`${client.apiKey} took: `);
     let res = await place_order(client, side, symbol, type, leverage, size, price);
-    console.timeEnd(`${client.apiKey} took: `);
+    // console.timeEnd(`${client.apiKey} took: `);
     return res;
 }
 
-async function place_order(client, side, symbol, type, leverage, size, price, retry_count = 0) {
+async function place_order(
+    client,
+    side,
+    symbol,
+    type,
+    leverage,
+    size,
+    price,
+    retry_count = 0
+) {
     params = {
         clientOid: uuidv4(),
         side: side,
@@ -38,44 +47,54 @@ async function place_order(client, side, symbol, type, leverage, size, price, re
         leverage: leverage,
 
         size: size,
-    }
+    };
     if (type == "limit") {
-        params.price = price
+        params.price = price;
     }
     let result = {
-        "api_key": client.apiKey,
-        "status": "fail",
-        "side": side,
-        "symbol": symbol,
-        "size": size,
-        "price": price,
-        "leverage": leverage,
-        "type": type,
-    }
+        status: "fail",
+        retry: false,
+        msg: "no msg",
+
+        account: {
+            api_key: client.apiKey,
+            secret_key: client.secretKey,
+            passphrase: client.passphrase,
+        },
+
+        side: side,
+        symbol: symbol,
+        size: size,
+        price: price,
+        leverage: leverage,
+        type: type,
+    };
     try {
-        let r = await client.placeOrder(params)
-        result.code = r.code
+        let r = await client.placeOrder(params);
+        result.code = r.code;
 
         if (r.code == "200000") {
-            result.status = "success",
-            result.order_id = r.data.orderId
-        }
-        else {
-            result.status = "fail"
-            result.msg = r.msg
+            (result.status = "success"), (result.order_id = r.data.orderId);
+        } else {
+            result.status = "fail";
+            result.msg = r.msg;
         }
 
+        console.log("success");
         return result;
     } catch (err) {
         if (err.response && err.response.status == 401) {
-            result.msg = err.response.data.msg
+            result.msg = err.response.data.msg;
 
-            return result
-        } else if ((err.response && err.response.status == 429) || err.code == "ECONNRESET") {
+            return result;
+        } else if (
+            (err.response && err.response.status == 429) ||
+            err.code == "ECONNRESET"
+        ) {
             result.msg = `Too many request - code: ${
                 err.code == undefined ? 429 : "ECONNRESET"
             }`;
-
+            console.log(result.msg);
             // await new Promise(r => setTimeout(r, 100));
         } else {
             result.msg = err.message;
@@ -83,27 +102,71 @@ async function place_order(client, side, symbol, type, leverage, size, price, re
             console.error(err);
         }
 
-        if (retry_count < 10) {
-            console.log(`${client.apiKey} - Retrying err: ${result.msg}`)
-            return await place_order(client, side, symbol, type, leverage, size, price, retry_count = retry_count+1)
-        }
+        // if (retry_count < 10) {
+        //     console.log(`${client.apiKey} - Retrying err: ${result.msg}`)
+        //     return await place_order(client, side, symbol, type, leverage, size, price, retry_count = retry_count+1)
+        // }
 
-        // TODO
-        result.network_fail = true;
-        // console.log("Fucked up");
+        result.retry = true;
         return result;
-    }    
+    }
 }
 
-async function bulk_config_and_place_order(accounts, side, symbol, type, leverage, size, price) {
+async function bulk_config_and_place_order(
+    accounts,
+    side,
+    symbol,
+    type,
+    leverage,
+    size,
+    price
+) {
     // TODO
-    fake_accounts = Array(3).fill(accounts).flat();
+    accounts = Array(1).fill(accounts).flat();
 
-    // TODO
-    accounts = accounts.slice(0, 30)
     console.log(`accounts length: ${accounts.length}`);
+    // const chunkSize = 10000;
+    let res = [];
+    let to_retry_results = [];
+    while (true) {
+        // for (let i = 0; i < accounts.length; i += chunkSize) {
+        //     console.log(`Start: ${i}, End: ${i + chunkSize}`);
+        //     const accounts_chunk = accounts.slice(i, i + chunkSize);
+        if (to_retry_results.length > 0) {
 
-    promisees = accounts.map((account) => {
+            console.log(to_retry_results);
+            accounts = to_retry_results.map((fail_res) => fail_res.account);
+            console.log(`Failed accounts length: ${accounts.length}`);
+        }
+        const { succeed, failed } = await place_chunk_order(
+            accounts,
+            side,
+            symbol,
+            type,
+            leverage,
+            size,
+            price
+        );
+        res = res.concat(succeed);
+        to_retry_results = failed;
+        if (to_retry_results.length == 0) {
+            break;
+        }
+    }
+
+    return res;
+}
+
+async function place_chunk_order(
+    accounts_chunk,
+    side,
+    symbol,
+    type,
+    leverage,
+    size,
+    price
+) {
+    const promisees = accounts_chunk.map((account) => {
         return config_and_place_order(
             account.api_key,
             account.api_secret,
@@ -116,22 +179,18 @@ async function bulk_config_and_place_order(accounts, side, symbol, type, leverag
             price
         );
     });
+
+    console.log(`Start ${new Date(Date.now())}`);
     console.time(`Sent ${promisees.length} request in`);
-    res = await Promise.all(promisees);
-
-    // TODO
-    let fail_count = 0;
-    res.forEach((result) => {
-        if (result.network_fail) {
-            fail_count += 1;
-        }
-    });
-
-    console.log(`${fail_count} request failed!`);
-    console.log(`\n`);
+    const chunk_res = await Promise.all(promisees);
     console.timeEnd(`Sent ${promisees.length} request in`);
-    console.log(`\n`);
-    return res;
+
+    const succeed = chunk_res.filter((result) => !result.retry);
+    const failed = chunk_res.filter((result) => result.retry);
+    console.log(`${failed.length} request failed!`);
+
+    await new Promise((r) => setTimeout(r, 15000));
+    return { succeed, failed };
 }
 
 async function read_from_file_place_order() {
