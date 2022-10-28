@@ -80,9 +80,23 @@
             <div class="w-form-fail">
                 <div>Oops! Something went wrong while submitting the form.</div>
             </div>
-            <a class="btn btn-danger btn-sm"
-                role="button"
-                href="{{ url_for("import_accounts") }}">Import Accounts</a>
+            <ul>
+                <li>
+                    <a class="btn btn-danger btn-sm"
+                        role="button"
+                        href="{{ url_for("import_accounts") }}">Import Accounts</a>
+                </li>
+                <li>
+                    <a class="btn btn-danger btn-sm"
+                        role="button"
+                        href="{{ url_for("export_accounts") }}">Export Accounts</a>
+                </li>
+                <li>
+                    <a class="btn btn-danger btn-sm"
+                    role="button"
+                    href="{{ url_for("delete_all_accounts") }}">Delete All Accounts</a>
+                </li>
+            </ul>
         </div>
         <div>
             <h3 class="heading">Accounts</h3>
@@ -120,7 +134,7 @@
                         <div class="account_field">
                             <a class="btn btn-danger btn-sm"
                                 role="button"
-                                href="{{ url_for("delete_account", api_key=account.api_key) }}">Delete</a>
+                                href="{{ url_for("delete_account", api_key=account.api_key) }}">Delete</a>                                
                         </div>
                     </li>
                 {% endfor %}

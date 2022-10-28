@@ -10,20 +10,31 @@
 [X] open orders summary for each account ('detail' function in kucoin doc)
 [X] js open orders summary
 [X] future trade account selection javascript side (clicking all selects all in frontend)
+[X] Order list -> table
+[X] add failed order to database and show in order list endpoint
+[X] list orders filter by not close not open
+[X] Accounts Export
+[X] delete all accounts
 
 ===== TODO
-[] #TODO js open orders summary
 
-[] #TODO show count of orders in list
-[] #TODO rename accounts
+[] #TODO celery 
 [] #TODO Long-running pages should be loaded the a loading icon spins until ajax request finishes
 
+[] #TODO cancel db orders filter by not close not open
+
+[] #TODO Accounts Export   / Download
+[] #TODO Accounts Import   / Upload files
+[] #TODO cancel all orders / Implement accounts selection and  symbol selection
+
 ===== BackLog
+[] rename accounts
+[] show count of orders in list
 
 [] group account
+[] List kucoin order (not just db - nodejs has it)
 
 [] Login Database (currently using python dictionary)
-[] Accounts Import/Export
 
 [] Database -> postgress
 [] Account DAO (reuseable session among requests) [check dummy dao for sqlite usage]

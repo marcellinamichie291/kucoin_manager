@@ -270,24 +270,38 @@ async def import_accounts(
         for i, acc in enumerate(accounts):
             try:
                 await Account.get_or_create(
-                    name=i,
+                    name=acc.get('name', i),
                     api_key=acc['api_key'],
                     api_secret=acc['api_secret'],
                     api_passphrase=acc['api_passphrase'],
                 )
             except Exception as e:
-                print("=======")
                 print(e)
-                print("=======")
     
     return RedirectResponse(
         router.url_path_for("create_account"),
         status_code=status.HTTP_302_FOUND,
     )
 
-        # await Account.bulk_create(
-        #     account_obj
-        # )
+
+@router.get("/account/export/", response_class=HTMLResponse)
+async def export_accounts(
+    user=Depends(manager),
+):
+    with open("account.json", "w") as f:
+        accounts = await Account.all().values(
+            'name',
+            'api_key',
+            'api_secret',
+            'api_passphrase',
+            'api_type',
+            'group'
+        )
+        json.dump(accounts, f)
+    return RedirectResponse(
+        router.url_path_for("create_account"),
+        status_code=status.HTTP_302_FOUND,
+    )
 
 
 @router.get("/account/delete/{api_key}/", response_class=HTMLResponse)
@@ -298,6 +312,18 @@ async def delete_account(
     account = await Account.get_or_none(api_key=api_key)
     if account:
         await account.delete()
+    
+    return RedirectResponse(
+        router.url_path_for("create_account"),
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.get("/account/delete/", response_class=HTMLResponse)
+async def delete_all_accounts(
+    user=Depends(manager),
+):
+    await Account.all().delete()
     
     return RedirectResponse(
         router.url_path_for("create_account"),
