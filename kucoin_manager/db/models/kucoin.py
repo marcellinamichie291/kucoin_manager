@@ -8,13 +8,15 @@ class Orders(models.Model):
     """
     id = fields.IntField(pk=True)
 
-    order_id = fields.CharField(max_length=50)
+    order_id = fields.CharField(max_length=50, unique=True, null=True)
     symbol = fields.CharField(max_length=20)
     side = fields.CharField(max_length=4)
     size = fields.CharField(max_length=10)
     price = fields.CharField(max_length=10)
     leverage = fields.CharField(max_length=3)
+    
     status = fields.CharField(max_length=10, default="open")
+    message = fields.CharField(max_length=255, default="success")
 
     account = fields.ForeignKeyField('models.Account', related_name='orders')
 
